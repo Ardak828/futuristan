@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Decentralized Art Network (Monochrome Planets)</title>
+    <!-- Load Tailwind CSS for modern styling of the surrounding elements -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden; 
+            background-color: #000000; 
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #p5-canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10; 
+        }
+        
+        /* High Z-index for navigation and instructions */
+        #nav-container, .instructions-overlay {
+            z-index: 100; 
+        }
+        .instructions-overlay {
+            pointer-events: none; 
+            transition: opacity 0.3s;
+        }
+        /* Modal specific styles */
+        .modal-overlay {
+            z-index: 150; 
+            /* Pure black overlay for maximum contrast */
+            background-color: rgba(0, 0, 0, 0.95); 
+            backdrop-filter: blur(8px);
+        }
+        .modal-content-container {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        /* Styling for the dropdown menu */
+        #category-filter {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            /* Custom arrow icon in white */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23FFFFFF'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd' /%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Container for the p5.js visualization -->
+    <div id="p5-canvas-container"></div>
+
+    <!-- Dropdown Navigation Menu (Top Left) -->
+    <div id="nav-container" class="fixed top-4 left-4"> 
+        <!-- Background: Gray 900, Border: Gray 600, Text: White -->
+        <select id="category-filter" class="w-56 md:w-64 p-3 rounded-xl bg-gray-900/90 border-2 border-gray-600/50 text-white shadow-2xl text-sm font-semibold focus:ring-4 focus:ring-white transition cursor-pointer">
+            <!-- Options populated by JS -->
+        </select>
+    </div>
+
+    <!-- Instructions Overlay -->
+    <!-- Background: Gray 900, Text: Gray 300/White -->
+    <div class="instructions-overlay fixed top-4 right-4 p-3 bg-gray-900/80 rounded-lg text-sm text-gray-300 shadow-xl">
+        <p class="font-semibold text-white">Universe Navigation:</p>
+        <ul class="list-disc list-inside mt-1 space-y-0.5">
+            <li>Scroll to **Zoom** in/out.</li>
+            <li>**Drag** a planet to move it.</li>
+            <li>**Quick-click** a planet to open **World View**.</li>
+            <li>Use **Top-Left Dropdown** to filter projects.</li>
+        </ul>
+    </div>
+
+    <!-- Artwork Content Modal Overlay -->
+    <div id="artwork-modal" class="modal-overlay hidden fixed inset-0 flex items-center justify-center p-4">
+        <!-- Modal Content Container: Background Gray 900, Border Gray 500 -->
+        <div class="modal-content-container bg-gray-900 border border-gray-500/30 rounded-xl shadow-2xl p-6 w-full max-w-lg md:max-w-xl lg:max-w-2xl transform transition-all duration-300">
+            <!-- Header elements confirmed as white/gray -->
+            <div class="flex justify-between items-start sticky top-0 bg-gray-900 pt-0 pb-4">
+                <div>
+                    <h2 id="modal-title" class="text-3xl font-extrabold text-white mb-1">Artwork Title</h2>
+                    <p id="modal-category" class="text-sm font-medium text-gray-400 uppercase tracking-wider">Category</p>
+                </div>
+                <!-- Close Button: Gray 400 hover White, hover background Gray 700 -->
+                <button id="close-modal-btn" class="text-gray-400 hover:text-white transition duration-200 p-2 -mt-2 -mr-2 rounded-full hover:bg-gray-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
+            <!-- Image container placeholder: Gray 800 background, Gray 700 border -->
+            <div id="modal-image-container" class="mb-6 rounded-lg overflow-hidden border border-gray-700/50 flex items-center justify-center h-48 bg-gray-800">
+                <!-- Image or Placeholder Injected by JavaScript -->
+            </div>
+
+            <!-- Modal Content Text: Gray 300 -->
+            <div id="modal-content" class="text-gray-300">
+                <!-- Content injected by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Load p5.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.3/p5.min.js"></script>
+    
+    <script>
+        // === CUSTOMIZATION POINT 1: ARTWORK DATA & RELATIVE IMAGE PATHS ===
+        
+        // Helper to generate a random grayscale color string
+        function randomGrayscaleColor(p) {
+            // Keep brightness between 80 (dark gray) and 255 (white)
+            const g = Math.floor(p.random(80, 255)); 
+            const hex = g.toString(16).padStart(2, '0');
+            return `#${hex}${hex}${hex}`;
+        }
+        
+        // Helper to generate a unique black and white placeholder URL for each node's "world" texture
+        const getPlaceholderUrl = (title) => {
+            const size = 150;
+            // Truncate title and replace spaces for URL text
+            const text = title.replace(/\s/g, '+').substring(0, 15);
+            // Use gray background and white text
+            return `https://placehold.co/${size}x${size}/374151/E5E7EB?text=${text}`;
+        };
+        
+        const TEMP_P5_MOCK = { random: (min, max) => Math.random() * (max - min) + min }; // Mock p5 for pre-setup color gen
+
+        // NOTE: The image_path is now set to a placeholder URL for demonstration.
+        // Replace these with actual image paths if you have them locally.
+        const ARTWORKS = [
+            // --- UPDATED: Using a real sample image URL for the first node ---
+            { id: 0, title: "Futuristan Flag (Sample Image)", category: "Conceptual Art", tags: ["#3D", "#SciFi"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Futuristan", image_path: "https://picsum.photos/id/1050/150/150" },
+            // ----------------------------------------------------------------
+            { id: 1, title: "Particle Butterfly", category: "Digital Sculpture", tags: ["#Particles", "#Monochrome"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Particle+Butterfly", image_path: getPlaceholderUrl("Particle Butterfly") },
+            { id: 2, title: "Abstract Flow", category: "Abstract Expressionism", tags: ["#Liquid", "#Vibrant"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Abstract+Flow", image_path: getPlaceholderUrl("Abstract Flow") },
+            { id: 3, title: "Point Cloud Tree", category: "Data Visualization", tags: ["#LiDAR", "#Monochrome"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Point+Cloud+Tree", image_path: getPlaceholderUrl("Point Cloud Tree") },
+            { id: 4, title: "Musician Silhouette", category: "Figurative Particles", tags: ["#Music", "#Aura"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Musician+Silhouette", image_path: getPlaceholderUrl("Musician Silhouette") },
+            { id: 5, title: "Neon Lichen", category: "Digital Flora", tags: ["#Neon", "#Organic"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Neon+Lichen", image_path: getPlaceholderUrl("Neon Lichen") },
+            { id: 6, title: "Organic Shell", category: "3D Modeling", tags: ["#Sculpture", "#Hollow"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Organic+Shell", image_path: getPlaceholderUrl("Organic Shell") },
+            { id: 7, title: "Neo Tengri", category: "Abstract 3D", tags: ["#Planets", "#Rings"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Neo+Tengri", image_path: getPlaceholderUrl("Neo Tengri") },
+            { id: 8, title: "Quantum Web", category: "Data Visualization", tags: ["#Code", "#Network"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Quantum+Web", image_path: getPlaceholderUrl("Quantum Web") },
+            { id: 9, title: "Synthwave City", category: "Digital Painting", tags: ["#Retro", "#Vapor"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Synthwave+City", image_path: getPlaceholderUrl("Synthwave City") },
+        ];
+        
+        // Edges define the connections between the artworks (node IDs)
+        const EDGES = [
+            { from: 0, to: 1 }, { from: 1, to: 5 }, { from: 2, to: 6 }, 
+            { from: 3, to: 7 }, { from: 0, to: 4 }, { from: 6, to: 1 }, 
+            { from: 8, to: 9 }, { from: 9, to: 3 }, { from: 4, to: 8 },
+            { from: 7, to: 2 }, 
+        ];
+
+        const uniqueCategories = Array.from(new Set(ARTWORKS.map(a => a.category))).sort();
+        const MENU_ITEMS = [
+            { category: 'Show All Projects', filterKey: 'all' }, 
+            ...uniqueCategories.map(c => ({ category: c, filterKey: c }))
+        ];
+
+
+        // --- 2. GLOBAL STATE AND CONSTANTS ---
+        const SLIGHT_REPULSION_FORCE = 0.005; 
+        const SLIGHT_CENTERING_FORCE = 0.00000005; 
+        const BOUNDARY_STRENGTH = 0.0005; 
+        const MAX_DISTANCE_FROM_CENTER = 400; 
+        const CLICK_THRESHOLD = 5; 
+        const STAR_COUNT = 1200; 
+
+        let nodes = [];
+        let stars = [];
+        let edgeStyles = []; 
+        let p5Instance; 
+        
+        let currentScale = 1.0; 
+        let viewOffset; 
+        let currentFilter = 'all'; 
+
+        // Variables for Drag functionality
+        let draggedNode = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+        let initialClickX = 0;
+        let initialClickY = 0;
+        
+        function getRandomStyle(p) {
+            const styleType = p.random(['solid', 'dotted', 'dashed']);
+            const weight = p.random(0.8, 3.5);
+            const speed = p.random(-0.3, -0.6); 
+            return { type: styleType, weight, speed };
+        }
+
+
+        // --- 3. NODE CLASS (Stores Data) ---
+
+        class Node {
+            constructor(data, x, y) {
+                this.id = data.id;
+                this.title = data.title;
+                this.category = data.category;
+                this.tags = data.tags; 
+                this.color = data.color;
+                this.url = data.url; 
+                this.image_path = data.image_path; 
+                this.imageObject = null; // To store the p5.Image object
+                
+                this.pos = p5Instance.createVector(x, y); 
+                this.vel = p5Instance.createVector(0, 0); 
+                this.acc = p5Instance.createVector(0, 0); 
+                
+                this.baseSize = p5Instance.random(35, 65);
+                this.size = this.baseSize; 
+                this.sizePhase = p5Instance.random(360); 
+                this.sizeOscillationAmount = p5Instance.random(0.5, 1.5); 
+                this.sizeOscillationSpeed = p5Instance.random(0.5, 1.5);
+                
+                this.isDragging = false;
+            }
+
+            applyForces() {
+                this.acc.mult(0); 
+                const center = p5Instance.createVector(p5Instance.width / 2, p5Instance.height / 2);
+
+                for (let other of nodes) {
+                    if (other !== this) {
+                        let force = p5.Vector.sub(this.pos, other.pos);
+                        let distance = force.mag();
+                        const minDistance = (this.size + other.size) / 2;
+                        distance = p5Instance.constrain(distance, minDistance, 150);
+                        let strength = -SLIGHT_REPULSION_FORCE / (distance * distance); 
+                        force.setMag(strength);
+                        this.acc.add(force);
+                    }
+                }
+
+                let centerForce = p5.Vector.sub(center, this.pos);
+                centerForce.mult(SLIGHT_CENTERING_FORCE);
+                this.acc.add(centerForce);
+
+                const distToCenter = p5Instance.dist(this.pos.x, this.pos.y, center.x, center.y);
+                if (distToCenter > MAX_DISTANCE_FROM_CENTER) {
+                    let boundaryForce = p5.Vector.sub(center, this.pos);
+                    let strength = BOUNDARY_STRENGTH * (distToCenter - MAX_DISTANCE_FROM_CENTER); 
+                    boundaryForce.setMag(strength);
+                    this.acc.add(boundaryForce);
+                }
+            }
+
+            update() {
+                if (!this.isDragging) {
+                    this.vel.add(this.acc);
+                    this.vel.mult(0.999999); 
+                    this.pos.add(this.vel);
+                }
+
+                const oscillation = p5Instance.sin((p5Instance.frameCount * this.sizeOscillationSpeed) + this.sizePhase) * this.sizeOscillationAmount;
+                this.size = this.baseSize + oscillation;
+            }
+
+            display(isHovered) {
+                p5Instance.ellipseMode(p5Instance.CENTER);
+                const currentSize = this.size;
+                const radius = currentSize / 2;
+
+                p5Instance.colorMode(p5Instance.RGB, 255); 
+                const baseColor = p5Instance.color(this.color); 
+
+                // Subtle brightness pulse (0-30 max change)
+                const pulse = p5Instance.map(p5Instance.sin(p5Instance.frameCount * 0.1), -1, 1, 0, 30);
+                
+                // Get base brightness (gray shade) and apply pulse
+                const baseBrightness = p5Instance.red(baseColor);
+                const dynamicBrightness = p5Instance.constrain(baseBrightness + pulse, 50, 255); 
+                
+                const mainColor = p5Instance.color(dynamicBrightness);
+
+
+                p5Instance.push();
+                p5Instance.translate(this.pos.x, this.pos.y);
+
+                // --- 1. Draw the "World" image inside the planet sphere (Clipped) ---
+                if (this.imageObject && this.imageObject.width > 0) {
+                    
+                    // Save drawing context state before clipping
+                    p5Instance.drawingContext.save();
+                    
+                    // Create a circular clip path
+                    p5Instance.drawingContext.beginPath();
+                    p5Instance.drawingContext.arc(0, 0, radius, 0, p5Instance.TWO_PI);
+                    p5Instance.drawingContext.clip();
+
+                    p5Instance.imageMode(p5Instance.CENTER);
+                    
+                    // Draw the image, scaled to the sphere size
+                    p5Instance.image(this.imageObject, 0, 0, currentSize, currentSize); 
+                    
+                    // Restore the drawing context to remove the clip path for subsequent drawing
+                    p5Instance.drawingContext.restore();
+                } else {
+                    // Fallback: Draw the main planet circle (solid gray)
+                    p5Instance.noStroke();
+                    p5Instance.fill(mainColor);
+                    p5Instance.ellipse(0, 0, currentSize, currentSize);
+                }
+                
+                // --- 2. Add Planet-like Shading (Radial Gradient) over the image/fallback ---
+                const gradient = p5Instance.drawingContext.createRadialGradient(
+                    -radius / 3, -radius / 3, radius * 0.1, // Inner circle (light source offset)
+                    -radius / 3, -radius / 3, radius * 1.2   // Outer circle (spread)
+                );
+
+                // Highlight color (brighter than main)
+                gradient.addColorStop(0, `rgba(255, 255, 255, 0.4)`); 
+                // Mid-tone (main color)
+                gradient.addColorStop(0.7, `rgba(${dynamicBrightness}, ${dynamicBrightness}, ${dynamicBrightness}, 0.1)`); 
+                // Shadow color (darker tone)
+                gradient.addColorStop(1, `rgba(0, 0, 0, 0.4)`); 
+
+                p5Instance.drawingContext.fillStyle = gradient;
+                p5Instance.drawingContext.beginPath();
+                p5Instance.drawingContext.arc(0, 0, radius, 0, p5Instance.TWO_PI);
+                p5Instance.drawingContext.fill();
+
+                
+                // --- 3. Draw a subtle edge glow/border ---
+                p5Instance.noFill();
+                p5Instance.stroke(255, 100); 
+                p5Instance.strokeWeight(0.5 / currentScale); 
+                p5Instance.ellipse(0, 0, currentSize, currentSize);
+
+                p5Instance.pop(); // End translation
+
+                // --- 4. Draw Interaction Highlight ---
+                // Draw highlight if either dragging OR hovered
+                if (this.isDragging || isHovered) {
+                    p5Instance.noFill();
+                    
+                    // Solid white and thick when dragging, translucent and thin when hovering
+                    let highlightAlpha = this.isDragging ? 255 : 150; 
+                    let highlightWeight = this.isDragging ? 3 / currentScale : 1.5 / currentScale; 
+
+                    p5Instance.stroke(255, highlightAlpha); 
+                    p5Instance.strokeWeight(highlightWeight); 
+                    
+                    // Draw the highlight circle around the node
+                    p5Instance.ellipse(this.pos.x, this.pos.y, currentSize * 1.15, currentSize * 1.15);
+                }
+            }
+        }
+
+        // --- 4. THE P5.JS SKETCH ---
+
+        const sketch = (p) => {
+            p5Instance = p; 
+            
+            p.setup = () => {
+                const canvas = p.createCanvas(p.windowWidth, p.windowHeight);
+                canvas.parent('p5-canvas-container'); 
+                p.angleMode(p.DEGREES);
+                p.cursor(p.HAND); 
+                p.colorMode(p.RGB, 255); 
+                p.fill(255);
+                p.stroke(255); // Global stroke setting
+
+                viewOffset = p.createVector(p.width / 2, p.height / 2);
+
+                // Initialize Node objects and load images
+                const center = p.createVector(p.width / 2, p.height / 2);
+                const baseRadius = p.min(p.width, p.height) * 0.3;
+                const totalNodes = ARTWORKS.length;
+                
+                nodes = ARTWORKS.map((data, index) => {
+                    let offsetAngle = index * (360 / totalNodes);
+                    let clusterOffset = 0;
+                    if (data.category === "Abstract Expressionism") clusterOffset = 30;
+                    if (data.category === "3D Modeling") clusterOffset = 120;
+                    if (data.category === "Data Visualization") clusterOffset = 240;
+                    if (data.category === "Conceptual Art") clusterOffset = 60;
+
+                    const radius = baseRadius + p.random(-baseRadius * 0.1, baseRadius * 0.1); 
+                    const x = center.x + radius * p.cos(offsetAngle + clusterOffset);
+                    const y = center.y + radius * p.sin(offsetAngle + clusterOffset);
+
+                    const newNode = new Node(data, x, y);
+
+                    // Load the image asynchronously
+                    newNode.imageObject = p.loadImage(data.image_path, 
+                        // Success callback: Do nothing, it's drawn in display
+                        () => {},
+                        // Error callback: Log the error and set object to null so fallback drawing is used
+                        (err) => { console.error(`Failed to load image for ${data.title}`, err); newNode.imageObject = null; }
+                    );
+
+                    return newNode; 
+                });
+
+                // Initialize background stars
+                for (let i = 0; i < STAR_COUNT; i++) {
+                    const radius = p.random(0, p.max(p.width, p.height) * 1.2); 
+                    const angle = p.random(360);
+                    stars.push({
+                        x: radius * p.cos(angle), 
+                        y: radius * p.sin(angle), 
+                        size: p.random(1, 3),
+                        alpha: p.random(100, 255),
+                        parallaxFactor: p.random(0.05, 0.2), 
+                        velX: p.random(-0.01, 0.01),
+                        velY: p.random(-0.01, 0.01)
+                    });
+                }
+                
+                // Initialize styles for each edge 
+                edgeStyles = EDGES.map(() => {
+                    return {
+                        ...getRandomStyle(p),
+                        transitionFrame: p.frameCount,
+                        duration: p.random(200, 400), 
+                    };
+                });
+            };
+
+            p.draw = () => {
+                p.background(0); 
+                
+                // --- 0. Draw Point Cloud / Starfield (Background) ---
+                p.push();
+                p.translate(p.width / 2, p.height / 2); 
+                p.noStroke();
+
+                const nodesCenter = p.createVector(p.width / 2, p.height / 2);
+                const viewDiffX = viewOffset.x - nodesCenter.x;
+                const viewDiffY = viewOffset.y - nodesCenter.y;
+                
+                for (let star of stars) {
+                    star.x += star.velX; 
+                    star.y += star.velY;
+                    
+                    const x = star.x - viewDiffX * star.parallaxFactor; 
+                    const y = star.y - viewDiffY * star.parallaxFactor;
+
+                    const fade = p.sin(p.millis() * 0.0005 * star.parallaxFactor) * 0.5 + 0.5;
+                    
+                    p.fill(255, star.alpha); 
+                    p.ellipse(x, y, star.size * fade, star.size * fade);
+                    
+                    if (p.frameCount % 180 === 0) { 
+                       star.velX = p.random(-0.02, 0.02);
+                       star.velY = p.random(-0.02, 0.02);
+                    }
+                }
+                p.pop();
+                
+                // --- Main Network Drawing (Nodes and Edges) ---
+                p.push();
+                p.translate(viewOffset.x, viewOffset.y); 
+                p.scale(currentScale); 
+                p.translate(-viewOffset.x, -viewOffset.y); 
+
+                // --- A. Draw Edges (Connections) ---
+                for (let i = 0; i < EDGES.length; i++) {
+                    let style = edgeStyles[i];
+                    
+                    if (p.frameCount > style.transitionFrame + style.duration) {
+                        Object.assign(style, getRandomStyle(p)); 
+                        style.transitionFrame = p.frameCount;
+                        style.duration = p.random(200, 400); 
+                    }
+                    
+                    const edge = EDGES[i];
+                    const nodeA = nodes.find(n => n.id === edge.from);
+                    const nodeB = nodes.find(n => n.id === edge.to);
+
+                    const isFiltered = currentFilter === 'all' || 
+                                       nodeA.category === currentFilter || 
+                                       nodeB.category === currentFilter;
+
+                    if (nodeA && nodeB && isFiltered) {
+                        
+                        const edgeColor = p.color(150, 200); 
+                        p.stroke(edgeColor);
+                        p.strokeWeight(style.weight / currentScale); 
+                        
+                        
+                        if (style.type !== 'solid') {
+                            const dashLength = style.type === 'dotted' ? 2 / currentScale : 10 / currentScale;
+                            const gapLength = style.type === 'dotted' ? 5 / currentScale : 5 / currentScale;
+                            const patternArray = [dashLength, gapLength];
+                            const totalDash = dashLength + gapLength;
+
+                            p.drawingContext.setLineDash(patternArray); 
+                            p.drawingContext.lineDashOffset = (p.frameCount * style.speed) % totalDash; 
+                        } else {
+                            p.drawingContext.setLineDash([]); 
+                            p.drawingContext.lineDashOffset = 0;
+                        }
+                        
+                        p.line(nodeA.pos.x, nodeA.pos.y, nodeB.pos.x, nodeB.pos.y);
+                        
+                        p.drawingContext.setLineDash([]); 
+                        p.drawingContext.lineDashOffset = 0;
+                    }
+                }
+                
+                // --- B. Update and Draw Nodes & Titles ---
+                const unscaledX = (p.mouseX - viewOffset.x) / currentScale + viewOffset.x;
+                const unscaledY = (p.mouseY - viewOffset.y) / currentScale + viewOffset.y;
+
+                p.fill(255, 200);
+                p.textSize(10 / currentScale); 
+                p.textAlign(p.CENTER, p.BOTTOM);
+
+                for (let node of nodes) {
+                    const isFiltered = currentFilter === 'all' || node.category === currentFilter;
+
+                    if (isFiltered) {
+                        // Determine hover state for the current node
+                        const isHovered = p.dist(node.pos.x, node.pos.y, unscaledX, unscaledY) < node.size / 2 * 1.5;
+
+                        node.applyForces(); 
+                        node.update();      
+                        node.display(isHovered); 
+                        
+                        // Draw Permanent Title in pure white (not affected by highlight logic)
+                        p.noStroke(); // MANDATORY: Disable stroke before drawing text
+                        p.fill(255); 
+                        p.text(node.title, node.pos.x, node.pos.y + (node.size / 2) + (20 / currentScale)); 
+                    } else {
+                        // Still update unfiltered nodes for physics simulation, but don't draw
+                        node.applyForces(); 
+                        node.update();
+                    }
+                }
+                
+                p.pop(); 
+            };
+            
+            p.windowResized = () => {
+                p.resizeCanvas(p.windowWidth, p.windowHeight);
+                viewOffset = p.createVector(p.width / 2, p.height / 2);
+            }
+
+            // --- 5. INTERACTION LOGIC ---
+
+            p.mouseWheel = (event) => {
+                if (!document.getElementById('artwork-modal').classList.contains('hidden')) {
+                    return false;
+                }
+                const zoomRate = 0.1;
+                let newScale = event.delta < 0 ? currentScale - zoomRate : currentScale + zoomRate;
+                currentScale = p.constrain(newScale, 0.5, 5.0); 
+                return false; 
+            };
+            
+            p.mousePressed = () => {
+                if (!document.getElementById('artwork-modal').classList.contains('hidden')) {
+                    return;
+                }
+
+                initialClickX = p.mouseX;
+                initialClickY = p.mouseY;
+
+                const unscaledX = (p.mouseX - viewOffset.x) / currentScale + viewOffset.x;
+                const unscaledY = (p.mouseY - viewOffset.y) / currentScale + viewOffset.y;
+
+                for (let node of nodes) {
+                    if (currentFilter === 'all' || node.category === currentFilter) {
+                        if (p.dist(node.pos.x, node.pos.y, unscaledX, unscaledY) < node.size / 2 * 1.5) {
+                            draggedNode = node;
+                            draggedNode.isDragging = true;
+                            // Set velocity to zero immediately on grab for stable start
+                            draggedNode.vel.mult(0); 
+                            dragOffsetX = node.pos.x - unscaledX;
+                            dragOffsetY = node.pos.y - unscaledY;
+                            return; 
+                        }
+                    }
+                }
+            }
+
+            p.mouseDragged = () => {
+                if (draggedNode) {
+                    const unscaledX = (p.mouseX - viewOffset.x) / currentScale + viewOffset.x;
+                    const unscaledY = (p.mouseY - viewOffset.y) / currentScale + viewOffset.y;
+
+                    draggedNode.pos.x = unscaledX + dragOffsetX;
+                    draggedNode.pos.y = unscaledY + dragOffsetY;
+                } else {
+                     // Pan the entire view if not dragging a node
+                    viewOffset.x += p.mouseX - p.pmouseX;
+                    viewOffset.y += p.mouseY - p.pmouseY;
+                }
+            }
+
+            p.mouseReleased = () => {
+                if (draggedNode) {
+                    const totalMovement = p.dist(initialClickX, initialClickY, p.mouseX, p.mouseY);
+
+                    if (totalMovement < CLICK_THRESHOLD) {
+                        openModal(draggedNode);
+                    }
+                    
+                    // Add a slight release impulse to make it feel natural
+                    draggedNode.vel.x = (p.mouseX - p.pmouseX) * 0.1;
+                    draggedNode.vel.y = (p.mouseY - p.pmouseY) * 0.1;
+                    
+                    draggedNode.isDragging = false;
+                    draggedNode = null;
+                }
+            }
+        };
+
+        // --- 6. MODAL & DROPDOWN LOGIC (HTML/JS) ---
+        
+        function setFilter(filterKey) {
+            currentFilter = filterKey;
+        }
+
+        function openModal(node) {
+            const modal = document.getElementById('artwork-modal');
+            document.getElementById('modal-title').textContent = node.title;
+            document.getElementById('modal-category').textContent = node.category;
+            
+            // Note: The modal image uses the same image_path/placeholder as the node's internal "world"
+            document.getElementById('modal-image-container').innerHTML = `
+                <!-- Image source remains, but the surrounding UI is B&W -->
+                <img src="${node.image_path}" alt="${node.title}" class="w-full h-auto object-cover rounded-lg block h-48" onerror="this.onerror=null;this.src='https://placehold.co/600x200/4B5563/FFFFFF?text=Image+Not+Found!+Check+Path';" />
+            `;
+
+            document.getElementById('modal-content').innerHTML = `
+                <p class="text-gray-400 mb-4">This piece, **${node.title}** (Category: ${node.category}), is a vital node in our creative network, linking works related to ${node.tags.join(', ')}. **You can replace this paragraph with your detailed description or notes about the artwork.**</p>
+                <div class="mt-6">
+                    <h3 class="text-lg font-bold text-white mb-2">Related Tags:</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <!-- Tags: Gray background, Gray text -->
+                        <span class="bg-gray-700/50 text-gray-300 text-xs font-semibold px-3 py-1 rounded-full">Planet Node</span>
+                        ${node.tags.map(tag => `<span class="bg-gray-700/50 text-gray-300 text-xs font-semibold px-3 py-1 rounded-full">${tag}</span>`).join('')}
+                    </div>
+                </div>
+                <!-- Button: White background, Black text, Gray hover -->
+                <a href="${node.url}" target="_blank" class="mt-6 inline-block w-full text-center px-4 py-3 bg-white hover:bg-gray-200 text-black font-semibold rounded-lg transition duration-200 shadow-lg">View External Source</a>
+            `;
+            
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('artwork-modal').classList.add('hidden');
+        }
+        
+        // Initialization on window load
+        window.onload = () => {
+             // 1. Initialize p5 sketch
+             new p5(sketch);
+             
+             // 2. Setup Dropdown UI
+             const categoryFilter = document.getElementById('category-filter');
+
+             MENU_ITEMS.forEach(item => {
+                 const option = document.createElement('option');
+                 option.value = item.filterKey;
+                 option.textContent = item.category;
+                 categoryFilter.appendChild(option);
+             });
+
+             // Set initial filter and attach listener
+             setFilter('all');
+             categoryFilter.addEventListener('change', (e) => setFilter(e.target.value));
+
+             // 3. Setup Modal handlers
+             document.getElementById('close-modal-btn').addEventListener('click', closeModal);
+             document.getElementById('artwork-modal').addEventListener('click', (e) => {
+                if (e.target.classList.contains('modal-overlay')) {
+                    closeModal();
+                }
+             });
+        };
+
+    </script>
+</body>
+</html>
