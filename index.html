@@ -65,9 +65,9 @@ window.addEventListener('click', (event) => {
 });
 
 // === Touch Tap (Mobile) ===
-window.addEventListener('touchend', (event) => {
-  if (event.changedTouches.length === 1) {
-    const touch = event.changedTouches[0];
+window.addEventListener('touchstart', (event) => {
+  if (event.touches.length === 1) {
+    const touch = event.touches[0];
     checkIntersection(touch.clientX, touch.clientY);
   }
 });
