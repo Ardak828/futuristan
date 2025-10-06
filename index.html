@@ -197,7 +197,10 @@
         const SLIGHT_CENTERING_FORCE = 0.00000005; 
         const BOUNDARY_STRENGTH = 0.0005; 
         const MAX_DISTANCE_FROM_CENTER = 400; 
-        const CLICK_THRESHOLD = 5; 
+        
+        // INCREASED THRESHOLD FOR RELIABLE MOBILE TAPPING (was 5)
+        const CLICK_THRESHOLD = 20; 
+        
         const STAR_COUNT = 1200; 
         const Z_DEPTH_RANGE = 1000; 
         const Z_FOCAL_LENGTH = 1.5; 
@@ -627,7 +630,7 @@
             };
             
             p.mousePressed = () => {
-                // If the modal is open OR we are pinching, ignore clicks on the canvas
+                // IMPORTANT: If the modal is open OR we are pinching, ignore clicks/touches on the canvas
                 if (!document.getElementById('projectModal').classList.contains('hidden') || isPinching) return; 
 
                 // Use p.mouseX/Y, which p5 maps to the first touch point on mobile
@@ -637,6 +640,7 @@
                 const unscaledX = (p.mouseX - viewOffset.x) / currentScale + viewOffset.x;
                 const unscaledY = (p.mouseY - viewOffset.y) / currentScale + viewOffset.y;
                 
+                // Search from the front-most nodes (lowest Z) for the smallest hit area
                 const clickableNodes = nodes.slice().sort((a, b) => a.z - b.z); 
 
                 for (let node of clickableNodes) {
@@ -657,7 +661,7 @@
             }
 
             p.mouseDragged = () => {
-                if (isPinching) return; // Important: Block single-touch drag during pinch-zoom
+                if (isPinching || !document.getElementById('projectModal').classList.contains('hidden')) return; 
                 
                 if (draggedNode) {
                     const unscaledX = (p.mouseX - viewOffset.x) / currentScale + viewOffset.x;
@@ -673,20 +677,25 @@
 
             p.mouseReleased = () => {
                 if (draggedNode) {
-                    // Check if this was a quick tap or a drag
+                    // Check if this was a quick tap (movement less than CLICK_THRESHOLD) or a drag
                     const totalMovement = p.dist(initialClickX, initialClickY, p.mouseX, p.mouseY);
 
                     if (totalMovement < CLICK_THRESHOLD) {
-                        // This was a tap/click
+                        // This was a tap/click -> open modal
                         showProjectModal(draggedNode); 
                     }
                     
+                    // Apply velocity (for a flick effect when released after a drag)
                     draggedNode.vel.x = (p.mouseX - p.pmouseX) * 0.1;
                     draggedNode.vel.y = (p.mouseY - p.pmouseY) * 0.1;
                     
                     draggedNode.isDragging = false;
                     draggedNode = null;
                 }
+                
+                // Important: returning false here would prevent the dropdown from working.
+                // Since the dropdown has a higher Z-index and is outside the canvas, 
+                // we only need to worry about suppressing touch defaults in touchMoved.
             }
             
             // --- 6. TOUCH GESTURE LOGIC (Multi-Touch for Pinch Zoom) ---
@@ -708,9 +717,14 @@
                     return false; // Suppress default browser zoom/scroll
                 }
                 
-                // If 1 touch is active, we let mouseDragged handle it, but still block default scroll
+                // If 1 touch is active, we let mouseDragged handle it. Return false to block mobile scrolling/panning.
+                if (p.touches.length > 0 && !document.getElementById('projectModal').classList.contains('hidden')) {
+                     // If the modal is open, don't block default scroll if touch is over the modal
+                     return true;
+                }
+                
                 if (p.touches.length > 0) {
-                    return false; 
+                    return false;
                 }
                 
                 // If 0 touches, let default behavior happen
@@ -723,7 +737,7 @@
                 previousTouchDistance = 0;
                 
                 // We rely on p.mouseReleased to handle the click detection and node release logic
-                return false; // Suppress default browser actions
+                return false; // Suppress default browser actions related to the tap
             }
         };
 
