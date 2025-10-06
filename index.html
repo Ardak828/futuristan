@@ -171,11 +171,13 @@
         const SLIGHT_CENTERING_FORCE = 0.00000005; 
         const BOUNDARY_STRENGTH = 0.0005; 
         const MAX_DISTANCE_FROM_CENTER = 400; 
-        const CLICK_THRESHOLD = 80; // Forgiving mobile tap
+        const CLICK_THRESHOLD = 80; // Forgiving mobile tap distance check
         const STAR_COUNT = 1200; 
         const Z_DEPTH_RANGE = 1000; 
         const Z_FOCAL_LENGTH = 1.5; 
         const PI = Math.PI;
+        // NEW CONFIG: How much larger the tap target is on mobile (1.8x the visual size)
+        const TOUCH_PADDING_FACTOR = 1.8; 
 
         // --- GLOBAL STATE ---
         let canvas, ctx, width, height;
@@ -184,7 +186,7 @@
         let edgeStyles = []; 
         
         let currentScale = 1.0; 
-        let viewOffset = {x: 0, y: 0}; 
+        let viewOffset = {x: 0, y: 0}; // Tracks the pivot point for zoom/pan (starts at screen center)
         let currentFilter = 'all'; 
         let currentProjectUrl = ''; 
         let isModalOpen = false;
@@ -196,7 +198,7 @@
         let initialClickY = 0;
         
         let isPinching = false;
-        let isViewPanning = false; // Tracks single-finger panning of the view
+        let isViewPanning = false; 
         let previousTouchDistance = 0;
 
         // --- VECTOR UTILITY CLASS (Replaces P5.js vectors) ---
@@ -310,6 +312,7 @@
             }
 
             getFinalSize() {
+                // Returns the perceived pixel size on screen (before global scale)
                 const perspectiveScale = Z_FOCAL_LENGTH - (this.z / Z_DEPTH_RANGE) * (Z_FOCAL_LENGTH - 0.5); 
                 return this.size * perspectiveScale;
             }
@@ -424,6 +427,7 @@
         function drawStars() {
             ctx.save();
             const nodesCenter = {x: width / 2, y: height / 2};
+            // stars should pan relative to the viewOffset pivot, but with parallax
             const viewDiffX = viewOffset.x - nodesCenter.x;
             const viewDiffY = viewOffset.y - nodesCenter.y;
             
@@ -440,6 +444,7 @@
                 
                 ctx.globalAlpha = star.alpha / 255;
                 
+                // Draw stars centered
                 ctx.beginPath();
                 ctx.arc(x + width/2, y + height/2, star.size * fade, 0, 2 * PI);
                 ctx.fill();
@@ -463,11 +468,10 @@
             // 2. Draw Stars (always drawn relative to the center)
             drawStars();
 
-            // 3. Apply View Transformations
+            // 3. Apply View Transformations (Pan/Zoom around the viewOffset pivot)
             ctx.save();
             ctx.translate(viewOffset.x, viewOffset.y); 
             ctx.scale(currentScale, currentScale); 
-            // We translate back so node positions are relative to the center of the viewport
             ctx.translate(-viewOffset.x, -viewOffset.y); 
 
             // 4. Update Physics
@@ -495,32 +499,15 @@
                 }
             }
             
-            // 7. Find Hovered Node (after transformation is applied)
-            const unscaledX = (mouseX - viewOffset.x) / currentScale + viewOffset.x;
-            const unscaledY = (mouseY - viewOffset.y) / currentScale + viewOffset.y;
-            let hoveredNode = null;
-            
-            // Draw far-to-near, check click/hover near-to-far
-            const sortedNodes = nodes.slice().sort((a, b) => b.z - a.z); 
-            
-            for (let i = sortedNodes.length - 1; i >= 0; i--) { 
-                let node = sortedNodes[i];
-                if (currentFilter === 'all' || node.category === currentFilter) {
-                    const finalSize = node.getFinalSize();
-                    const distance = Math.sqrt(Math.pow(node.pos.x - unscaledX, 2) + Math.pow(node.pos.y - unscaledY, 2));
+            // 7. Find Hovered Node for cursor feedback
+            const collisionResult = getNodeAtScreenCoords(mouseX, mouseY);
+            const hoveredNode = collisionResult ? collisionResult.node : null;
 
-                    if (distance < finalSize / 2) { 
-                        hoveredNode = node;
-                        break; 
-                    }
-                }
-            }
-            
             // Set cursor based on interaction state
             canvas.style.cursor = (draggedNode || hoveredNode || isViewPanning) ? 'pointer' : 'grab';
 
-
             // 8. Draw Nodes (Far-to-Near Z-order)
+            const sortedNodes = nodes.slice().sort((a, b) => b.z - a.z); 
             for (let node of sortedNodes) {
                 if (currentFilter === 'all' || node.category === currentFilter) {
                     drawNode(node, node === hoveredNode); 
@@ -532,6 +519,45 @@
             // 9. Loop
             requestAnimationFrame(gameLoop);
         }
+        
+        // --- HELPER FUNCTION: Correctly translates screen coords to world coords and checks collision ---
+        /**
+         * Converts screen coordinates to world coordinates and checks for node collision.
+         * Includes mobile touch padding for forgiving targets.
+         * @returns {object|null} { node, unscaledX, unscaledY } of the topmost collided node, or null.
+         */
+        function getNodeAtScreenCoords(screenX, screenY) {
+            // Inverse Transform: This equation correctly reverses the T/S/T transformation in gameLoop.
+            const unscaledX = (screenX - viewOffset.x) / currentScale + viewOffset.x;
+            const unscaledY = (screenY - viewOffset.y) / currentScale + viewOffset.y;
+            
+            // Apply touch padding only on small screens for better UX
+            const touchPadding = window.innerWidth <= 640 ? TOUCH_PADDING_FACTOR : 1.0; 
+
+            // Check for node collision (near-to-far)
+            // Sorting near-to-far ensures we only interact with the visually top-most node
+            const clickableNodes = nodes.slice().sort((a, b) => b.z - a.z); 
+
+            for (let node of clickableNodes) {
+                if (currentFilter === 'all' || node.category === currentFilter) {
+                    const finalSize = node.getFinalSize();
+                    
+                    // FIX: Convert screen size (finalSize) to world size (worldRadius)
+                    // We need to compare the distance in WORLD coordinates against the node's radius in WORLD coordinates.
+                    const worldRadius = (finalSize / 2) / currentScale; 
+
+                    // Calculate distance in WORLD coordinates
+                    const distance = Math.sqrt(Math.pow(node.pos.x - unscaledX, 2) + Math.pow(node.pos.y - unscaledY, 2));
+
+                    // Check distance against padded world radius
+                    if (distance < worldRadius * touchPadding) { 
+                        return { node, unscaledX, unscaledY };
+                    }
+                }
+            }
+            return null;
+        }
+
 
         // --- INITIALIZATION ---
 
@@ -595,6 +621,7 @@
             
             resizeCanvas();
             
+            // viewOffset starts at center, acting as the pivot point
             viewOffset.x = width / 2;
             viewOffset.y = height / 2;
             
@@ -621,7 +648,7 @@
             height = window.innerHeight;
             canvas.width = width;
             canvas.height = height;
-            // Recenter the view when resizing
+            // Recenter the pivot point when resizing
             viewOffset.x = width / 2;
             viewOffset.y = height / 2;
         }
@@ -631,14 +658,6 @@
         let mouseX = 0;
         let mouseY = 0;
 
-        function getMousePos(event) {
-            let rect = canvas.getBoundingClientRect();
-            return {
-                x: event.clientX - rect.left,
-                y: event.clientY - rect.top
-            };
-        }
-        
         function handleMouseWheel(event) {
             event.preventDefault(); // Prevent default browser zoom/scroll
             if (isModalOpen) return;
@@ -657,26 +676,18 @@
             mouseX = event.clientX;
             mouseY = event.clientY;
 
-            const unscaledX = (mouseX - viewOffset.x) / currentScale + viewOffset.x;
-            const unscaledY = (mouseY - viewOffset.y) / currentScale + viewOffset.y;
+            const collisionResult = getNodeAtScreenCoords(mouseX, mouseY);
             
-            // Check for node collision (near-to-far)
-            const clickableNodes = nodes.slice().sort((a, b) => a.z - b.z); 
-
-            for (let node of clickableNodes) {
-                if (currentFilter === 'all' || node.category === currentFilter) {
-                    const finalSize = node.getFinalSize();
-                    const distance = Math.sqrt(Math.pow(node.pos.x - unscaledX, 2) + Math.pow(node.pos.y - unscaledY, 2));
-
-                    if (distance < finalSize / 2) { 
-                        draggedNode = node;
-                        draggedNode.isDragging = true;
-                        draggedNode.vel.mult(0); 
-                        dragOffsetX = node.pos.x - unscaledX;
-                        dragOffsetY = node.pos.y - unscaledY;
-                        return; 
-                    }
-                }
+            if (collisionResult) {
+                const { node, unscaledX, unscaledY } = collisionResult;
+                draggedNode = node;
+                draggedNode.isDragging = true;
+                draggedNode.vel.mult(0); 
+                
+                // Calculate offset in WORLD coordinates
+                dragOffsetX = node.pos.x - unscaledX;
+                dragOffsetY = node.pos.y - unscaledY;
+                return; 
             }
         }
 
@@ -689,11 +700,13 @@
             if (isModalOpen) return;
 
             if (draggedNode) {
-                const unscaledX = (mouseX - viewOffset.x) / currentScale + viewOffset.x;
-                const unscaledY = (mouseY - viewOffset.y) / currentScale + viewOffset.y;
+                // Get the world position of the new mouse location
+                const newUnscaledX = (mouseX - viewOffset.x) / currentScale + viewOffset.x;
+                const newUnscaledY = (mouseY - viewOffset.y) / currentScale + viewOffset.y;
 
-                draggedNode.pos.x = unscaledX + dragOffsetX;
-                draggedNode.pos.y = unscaledY + dragOffsetY;
+                // Move the node to the new world position + the offset
+                draggedNode.pos.x = newUnscaledX + dragOffsetX;
+                draggedNode.pos.y = newUnscaledY + dragOffsetY;
             } else if (event.buttons === 1) { // If left button is down for panning (Desktop)
                 viewOffset.x += mouseX - prevMouseX;
                 viewOffset.y += mouseY - prevMouseY;
@@ -711,11 +724,7 @@
                     showProjectModal(draggedNode); 
                     draggedNode.vel.mult(0); // Stop movement immediately after tap
                 } else {
-                    // Apply velocity for flick effect (using the last known delta)
-                    // event.clientX/Y is the final mouse position on mouseup
-                    // mouseX/Y is the final mouse position from handleMouseMove
-                    // Since mouseX/Y is already updated to event.clientX/Y in this case, 
-                    // we use a simple dampening formula
+                    // Apply velocity for flick effect
                     draggedNode.vel.x = (event.clientX - initialClickX) * 0.02; 
                     draggedNode.vel.y = (event.clientY - initialClickY) * 0.02;
                 }
@@ -731,35 +740,26 @@
             if (isModalOpen) return;
             event.preventDefault(); // CRITICAL: Stop browser scrolling/zooming right away
 
+            // Update mouseX/Y with the first touch point
+            const touch = event.touches[0];
+            initialClickX = touch.clientX;
+            initialClickY = touch.clientY;
+            mouseX = touch.clientX;
+            mouseY = touch.clientY;
+
             // Single Finger (Node Drag or View Pan)
             if (event.touches.length === 1) {
-                const touch = event.touches[0];
-                initialClickX = touch.clientX;
-                initialClickY = touch.clientY;
-                mouseX = touch.clientX;
-                mouseY = touch.clientY;
+                const collisionResult = getNodeAtScreenCoords(mouseX, mouseY);
 
-                const unscaledX = (mouseX - viewOffset.x) / currentScale + viewOffset.x;
-                const unscaledY = (mouseY - viewOffset.y) / currentScale + viewOffset.y;
-                
-                // Check for node collision (near-to-far)
-                const clickableNodes = nodes.slice().sort((a, b) => a.z - b.z); 
-
-                for (let node of clickableNodes) {
-                    if (currentFilter === 'all' || node.category === currentFilter) {
-                        const finalSize = node.getFinalSize();
-                        const distance = Math.sqrt(Math.pow(node.pos.x - unscaledX, 2) + Math.pow(node.pos.y - unscaledY, 2));
-
-                        if (distance < finalSize / 2) { 
-                            draggedNode = node;
-                            draggedNode.isDragging = true;
-                            draggedNode.vel.mult(0); 
-                            dragOffsetX = node.pos.x - unscaledX;
-                            dragOffsetY = node.pos.y - unscaledY;
-                            isViewPanning = false; // Node found, prioritize dragging
-                            return; 
-                        }
-                    }
+                if (collisionResult) {
+                    const { node, unscaledX, unscaledY } = collisionResult;
+                    draggedNode = node;
+                    draggedNode.isDragging = true;
+                    draggedNode.vel.mult(0); 
+                    dragOffsetX = node.pos.x - unscaledX;
+                    dragOffsetY = node.pos.y - unscaledY;
+                    isViewPanning = false; // Node found, prioritize dragging
+                    return; 
                 }
                 
                 // If no node found, start panning the view
@@ -808,11 +808,13 @@
             } else if (event.touches.length === 1 && !isPinching) {
                 // Single Touch Action (Node Drag or View Pan)
                 if (draggedNode) {
-                    const unscaledX = (mouseX - viewOffset.x) / currentScale + viewOffset.x;
-                    const unscaledY = (mouseY - viewOffset.y) / currentScale + viewOffset.y;
+                    // Get the world position of the new touch location
+                    const newUnscaledX = (mouseX - viewOffset.x) / currentScale + viewOffset.x;
+                    const newUnscaledY = (mouseY - viewOffset.y) / currentScale + viewOffset.y;
     
-                    draggedNode.pos.x = unscaledX + dragOffsetX;
-                    draggedNode.pos.y = unscaledY + dragOffsetY;
+                    // Move the node to the new world position + the offset
+                    draggedNode.pos.x = newUnscaledX + dragOffsetX;
+                    draggedNode.pos.y = newUnscaledY + dragOffsetY;
                 } else if (isViewPanning) { 
                     // Panning the view
                     viewOffset.x += mouseX - prevMouseX;
@@ -826,7 +828,7 @@
             previousTouchDistance = 0;
             
             if (draggedNode) {
-                 // The last coordinates are already in mouseX/mouseY
+                 // Check if it was a quick tap (tap) or a long drag (flick/move)
                  const totalMovement = Math.sqrt(
                     Math.pow(initialClickX - mouseX, 2) + 
                     Math.pow(initialClickY - mouseY, 2)
