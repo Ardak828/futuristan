@@ -201,8 +201,8 @@
         const BOUNDARY_STRENGTH = 0.0005; 
         const MAX_DISTANCE_FROM_CENTER = 400; 
         
-        // CRITICAL FIX: Increased threshold for reliable mobile tapping
-        const CLICK_THRESHOLD = 20; 
+        // CRITICAL FIX: Increased threshold to 40 for more forgiving mobile taps
+        const CLICK_THRESHOLD = 40; 
         
         const STAR_COUNT = 1200; 
         const Z_DEPTH_RANGE = 1000; 
@@ -635,6 +635,12 @@
             p.mousePressed = () => {
                 // Ignore all canvas interaction if the modal is open or pinching is active
                 if (isModalOpen || isPinching) return; 
+                
+                // Safety Guard: Ignore clicks starting near the external dropdown menu (top-left)
+                // This prevents the canvas from capturing clicks intended for the native HTML select element.
+                if (p.mouseX < 300 && p.mouseY < 100) {
+                     return; 
+                }
 
                 // Use p.mouseX/Y, which p5 maps to the first touch point on mobile
                 initialClickX = p.mouseX;
@@ -685,8 +691,8 @@
                     // Check if this was a quick tap (movement less than CLICK_THRESHOLD) or a drag
                     const totalMovement = p.dist(initialClickX, initialClickY, p.mouseX, p.mouseY);
 
+                    // If movement is within the generous threshold, treat it as a tap.
                     if (totalMovement < CLICK_THRESHOLD) {
-                        // This was a tap/click -> open modal
                         showProjectModal(draggedNode); 
                     }
                     
