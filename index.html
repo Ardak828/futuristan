@@ -3,135 +3,296 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>futuristan (Native Canvas)</title> 
-    <!-- Load Tailwind CSS for modern styling of the surrounding elements -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>3D Interactive Art Network</title>
+    
+    <!-- All styling is internal CSS to maximize compatibility -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         body {
-            font-family: 'Inter', sans-serif;
             margin: 0;
-            overflow: hidden; /* Hide scrollbars as the canvas fills the viewport */
-            background-color: #000000; 
-            color: #ffffff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            /* CRITICAL: Prevents 300ms tap delay and better handles touch events */
-            touch-action: none; 
+            overflow: hidden; 
+            font-family: 'Inter', sans-serif;
+            background-color: #000;
         }
-        
-        #app-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-
-        #galaxyCanvas {
-            position: absolute;
-            top: 0;
-            left: 0;
+        canvas {
             display: block;
-            z-index: 10; 
-            /* Set CSS dimensions back to screen size for high-DPI scaling */
-            width: 100vw; 
-            height: 100vh; 
         }
-        
-        #nav-container, .instructions-overlay {
-            z-index: 100; 
-        }
-
-        #category-filter {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23000000'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd' /%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 0.75rem center;
-            background-size: 1.5em 1.5em;
-            padding-right: 2.5rem;
-            cursor: pointer;
-        }
-        
-        .modal-card-image {
-            height: 200px;
-            object-fit: cover;
-        }
-
         .modal-open {
             overflow: hidden;
         }
+        
+        /* === Instructions Overlay === */
+        #instructions {
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.75rem;
+            background-color: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            z-index: 20;
+            text-align: center;
+            transition: opacity 500ms;
+            font-size: 0.875rem;
+            font-weight: bold;
+        }
+        #instructions p {
+            margin-top: 0.25rem;
+            font-size: 0.75rem;
+            color: #d1d5db; 
+        }
+        #instructions .title {
+             color: #9094e6; 
+        }
+        .text-white {
+            color: white;
+        }
+
+        /* === Nav Container and Filter === */
+        #nav-container {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 20;
+        }
+        #category-filter {
+            width: 12rem; 
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            background-color: rgba(255, 255, 255, 0.9);
+            border: 2px solid black;
+            color: black;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 150ms;
+        }
+
+        /* === 2D Node Labels === */
+        .node-label {
+            position: absolute;
+            font-size: 0.75rem;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -100%); 
+            pointer-events: none; 
+            white-space: nowrap;
+            opacity: 0.9;
+            transition: opacity 0.1s;
+        }
+        
+        /* === Modal Styles === */
+        #projectModal {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            overflow-y: auto;
+        }
+        .fixed-inset-0 {
+            position: fixed;
+            inset: 0;
+        }
+        .bg-gray-900-opacity-80 {
+            background-color: rgba(17, 24, 39, 0.8);
+            transition: opacity 300ms;
+        }
+        .modal-flex-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .modal-content-panel {
+            position: relative;
+            background-color: #111827; 
+            border: 1px solid #374151; 
+            border-radius: 1rem; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            max-width: 28rem;
+            margin: auto;
+            transform: translateY(0);
+            transition: all 300ms;
+            padding: 1.5rem;
+            color: white;
+        }
+        
+        /* Modal Close Button */
+        #projectModal button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            color: #9ca3af; 
+            outline: none;
+            padding: 0.25rem;
+            transition: all 150ms;
+            border-radius: 9999px;
+            z-index: 50;
+        }
+        #projectModal button:hover {
+            color: white;
+            background-color: #1f2937;
+        }
+        
+        /* Modal Details */
+        #modal-project-details h3 {
+            font-size: 1.875rem;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 0.25rem;
+        }
+        #modal-project-details p.category {
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #818cf8;
+        }
+        .image-card {
+            background-color: #1f2937; 
+            border: 1px solid #374151; 
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            margin-top: 1rem;
+        }
+        .image-card img {
+            height: 12rem;
+            width: 100%;
+            object-fit: cover;
+        }
+        .image-card .description {
+            padding: 1rem;
+            color: #9ca3af;
+            font-size: 0.875rem;
+            font-style: italic;
+        }
+        
+        /* Tags */
+        .tag-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding-top: 0.5rem;
+        }
+        .tag {
+            background-color: #1f2937;
+            color: #d1d5db;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            border: 1px solid #374151;
+        }
+        .color-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: #d1d5db;
+        }
+        .color-swatch {
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 9999px;
+            border: 1px solid #6b7280;
+        }
+        
+        /* Footer Button */
+        .modal-footer {
+            margin-top: 1.5rem;
+        }
+        #fullProjectBtn {
+            width: 100%;
+            display: inline-flex;
+            justify-content: center;
+            border-radius: 0.75rem;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 0.75rem 1rem;
+            background-color: #4f46e5; 
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 150ms;
+        }
+        #fullProjectBtn:hover {
+            background-color: #4338ca; 
+        }
+        #actionMessage {
+            margin-top: 0.75rem;
+            text-align: center;
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+        .hidden { display: none; }
     </style>
+    <!-- Load Three.js and OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
-<body class="bg-black">
+<body>
 
-    <div id="app-container">
-        
-        <!-- === CANVAS FOR DRAWING === -->
-        <canvas id="galaxyCanvas"></canvas>
-    
-        <!-- Dropdown Navigation Menu (Top Left) -->
-        <div id="nav-container" class="fixed top-4 left-4 z-[100]"> 
-            <select id="category-filter" class="w-48 sm:w-56 md:w-64 p-3 rounded-xl bg-white/90 border-2 border-black text-black shadow-lg text-sm font-semibold focus:ring-4 focus:ring-black transition cursor:pointer">
-                <!-- Options populated by JS -->
-            </select>
-        </div>
+    <!-- Instructions Overlay -->
+    <div id="instructions">
+        <p class="title">3D Network Explorer</p>
+        <p class="text-xs mt-1 text-gray-300">
+            <span class="block sm:inline">Navigate: Drag/Pan/Zoom.</span>
+            <span class="block sm:inline sm:ml-4 font-semibold text-white">Click/Tap a sphere to view project details.</span>
+        </p>
+    </div>
 
-        <!-- Instructions Overlay (Top Right) -->
-        <div class="instructions-overlay fixed top-4 right-4 p-3 bg-white/90 rounded-lg text-sm text-gray-700 border border-black shadow-xl hidden sm:block z-[100]">
-            <p class="font-semibold text-black">Universe Navigation (Desktop/Scroll):</p>
-            <ul class="list-disc list-inside mt-1 space-y-0.5">
-                <li>Scroll to **Zoom** in/out.</li>
-                <li>**Drag** a planet to move it.</li>
-                <li>**Quick-click** a planet to open **Project Modal**.</li>
-            </ul>
-        </div>
-        
-        <!-- Instructions Overlay (Mobile/Touch Guide) -->
-        <div class="instructions-overlay fixed bottom-4 right-4 p-2 bg-white/90 rounded-lg text-xs text-gray-700 border border-black shadow-xl block z-[100]">
-            <p class="font-semibold text-black mb-1">Touch Guide:</p>
-            <p>1 Finger: **Pan View/Drag Node/Tap**</p>
-            <p>2 Fingers: **Pinch to Zoom**</p>
-        </div>
+    <!-- Dropdown Filter Menu -->
+    <div id="nav-container"> 
+        <select id="category-filter" name="category-filter">
+            <!-- Options populated by JS -->
+        </select>
+    </div>
+
+    <!-- === 2D Label Container === -->
+    <div id="label-container" class="fixed-inset-0" style="pointer-events: none; z-index: 10;">
+        <!-- Labels will be added here by JavaScript -->
     </div>
     
     <!-- === PROJECT MODAL/OVERLAY WINDOW === -->
-    <div id="projectModal" class="hidden fixed inset-0 z-[1000] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div id="projectModal" class="hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         
         <!-- Modal Backdrop -->
-        <div class="fixed inset-0 bg-gray-900 bg-opacity-80 transition-opacity" onclick="closeProjectModal()"></div>
+        <div class="fixed-inset-0 bg-gray-900-opacity-80" onclick="closeProjectModal()"></div>
 
         <!-- Modal Container -->
-        <div class="flex items-center justify-center min-h-screen p-4 sm:p-6">
+        <div class="modal-flex-container">
             
             <!-- Modal Panel -->
-            <div id="modal-content-panel" class="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-xl mx-auto transform transition-all p-6 sm:p-8 text-white">
+            <div id="modal-content-panel" class="modal-content-panel">
                 
                 <!-- Close Button -->
-                <button type="button" 
-                        class="absolute top-4 right-4 text-gray-400 hover:text-white focus:outline-none p-1 transition duration-150 rounded-full hover:bg-gray-800 z-[1010]"
-                        onclick="closeProjectModal()">
+                <button type="button" onclick="closeProjectModal()">
                     <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
 
                 <!-- Content will be injected here by JavaScript -->
-                <div id="modal-project-details" class="space-y-4">
+                <div id="modal-project-details" style="margin-top: 1rem;">
                     <!-- Project details inserted here -->
                 </div>
 
                 <!-- Footer Action Button -->
-                <div class="mt-6">
-                    <button type="button" 
-                            id="fullProjectBtn"
-                            class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-md px-4 py-3 bg-indigo-600 text-base font-semibold text-white hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 transition duration-150 sm:text-lg"
-                            onclick="handleFullProjectClick()">
+                <div class="modal-footer">
+                    <button type="button" id="fullProjectBtn" onclick="handleFullProjectClick()">
                         View Full Project
                     </button>
-                    <p id="actionMessage" class="mt-3 text-center text-sm text-gray-400 hidden">
+                    <p id="actionMessage" class="hidden">
                         Simulating navigation to the full project documentation...
                     </p>
                 </div>
@@ -140,8 +301,7 @@
     </div>
     
     <script>
-        // === CORE DATA AND CONFIGURATION ===
-        
+        // --- CORE DATA ---
         const ARTWORKS = [
             { id: 0, title: "Conceptual Art - Light Form", category: "Conceptual Art", tags: ["#3D", "#SciFi", "#Light"], color: '#A0A0A0', url: "https://www.google.com/search?q=Conceptual+Art", description: "Explores the interplay between perceived reality and light's formless nature. A decentralized ledger of light-based art experiments.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
             { id: 1, title: "Digital Portrait Study", category: "Digital Sculpture", tags: ["#Particles", "#Monochrome", "#Face"], color: '#B0B0B0', url: "https://www.google.com/search?q=Digital+Sculpture", description: "A dynamic study of the human form rendered entirely through particle systems, constantly shifting and reforming. This node holds the original source code.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
@@ -162,799 +322,456 @@
             { from: 7, to: 2 }, 
         ];
 
-        const uniqueCategories = Array.from(new Set(ARTWORKS.map(a => a.category))).sort();
-        const MENU_ITEMS = [
-            { category: 'Show All Projects', filterKey: 'all' }, 
-            ...uniqueCategories.map(c => ({ category: c, filterKey: c }))
-        ];
-
-        // --- GLOBAL CONFIGS ---
-        const SLIGHT_REPULSION_FORCE = 0.005; 
-        const STRONG_REPULSION_FORCE = 0.5; 
-        const SLIGHT_CENTERING_FORCE = 0.00000005; 
-        const BOUNDARY_STRENGTH = 0.0005; 
-        const MAX_DISTANCE_FROM_CENTER = 400; 
-        // INCREASED FORGIVENESS: Taps that move less than this threshold are considered clicks.
-        const CLICK_THRESHOLD = 12; 
-        const STAR_COUNT = 1200; 
-        const Z_DEPTH_RANGE = 1000; 
-        const Z_FOCAL_LENGTH = 1.5; 
-        const PI = Math.PI;
-        const MIN_NODE_SEPARATION = 120; 
-        // INCREASED FORGIVENESS: Larger tap target for mobile devices (2.0x the visual size)
-        const TOUCH_PADDING_FACTOR = 2.0; 
-
-        // --- GLOBAL STATE ---
-        let canvas, ctx, width, height;
-        let dpr = window.devicePixelRatio || 1; // CRITICAL: Get device pixel ratio
-        let nodes = [];
-        let stars = [];
-        let edgeStyles = []; 
+        // --- Three.js Global State ---
+        let scene, camera, renderer, controls;
+        let raycaster, mouse;
+        let nodeGroup, lineGroup;
+        let nodes = []; 
+        let edges = []; 
         
-        let currentScale = 1.0; 
-        let viewOffset = {x: 0, y: 0}; 
-        let currentFilter = 'all'; 
-        let currentProjectUrl = ''; 
-        let isModalOpen = false;
-
+        // Interaction State
         let draggedNode = null;
-        let dragOffsetX = 0;
-        let dragOffsetY = 0;
-        let initialClickX = 0;
-        let initialClickY = 0;
+        let plane = new THREE.Plane();
+        let offset = new THREE.Vector3();
+        let intersection = new THREE.Vector3();
+        let clickStartScreen = {x: 0, y: 0}; 
         
-        let isPinching = false;
-        let isViewPanning = false; 
-        let previousTouchDistance = 0;
+        const CLICK_THRESHOLD = 25; 
+        const NODE_RADIUS = 3;
+        const GALAXY_RADIUS = 150; 
+        
+        let currentFilter = 'all';
+        let isModalOpen = false;
+        
+        const tempV = new THREE.Vector3(); 
+        let currentProjectUrl = ''; 
 
-        // --- VECTOR UTILITY CLASS ---
-        class Vector {
-            constructor(x = 0, y = 0) {
-                this.x = x;
-                this.y = y;
-            }
-            add(v) {
-                this.x += v.x;
-                this.y += v.y;
-                return this;
-            }
-            sub(v) {
-                this.x -= v.x;
-                this.y -= v.y;
-                return this;
-            }
-            mult(n) {
-                this.x *= n;
-                this.y *= n;
-                return this;
-            }
-            mag() {
-                return Math.sqrt(this.x * this.x + this.y * this.y);
-            }
-            setMag(n) {
-                const len = this.mag();
-                if (len > 0) {
-                    this.x = (this.x / len) * n;
-                    this.y = (this.y / len) * n;
-                }
-                return this;
-            }
-            static sub(v1, v2) {
-                return new Vector(v1.x - v2.x, v1.y - v2.y);
-            }
+        // --- THREE.JS SETUP ---
+
+        function init() {
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+            scene.fog = new THREE.FogExp2(0x000000, 0.001);
+
+            // Camera Setup
+            const aspectRatio = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(70, aspectRatio, 1, 1000);
+            camera.position.set(0, 0, 200);
+
+            // Renderer Setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Controls 
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 50;
+            controls.maxDistance = 300;
+
+            // Lighting 
+            scene.add(new THREE.AmbientLight(0x404040, 3)); 
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+
+            // Raycasting Setup
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            // Initialize groups for structure
+            nodeGroup = new THREE.Group();
+            lineGroup = new THREE.Group();
+            scene.add(nodeGroup);
+            scene.add(lineGroup);
+            
+            createBackgroundStars(1000);
+            createGalaxyNetwork();
+            createLabels(); 
+            populateFilterMenu();
+            
+            // --- ATTACHING EVENT LISTENERS ---
+            window.addEventListener('resize', onWindowResize, false);
+            
+            const canvas = renderer.domElement;
+
+            canvas.addEventListener('mousedown', onPointerDown, false);
+            canvas.addEventListener('touchstart', onPointerDown, false);
+            
+            canvas.addEventListener('mousemove', onPointerMove, false);
+            canvas.addEventListener('touchmove', onPointerMove, false);
+            
+            canvas.addEventListener('mouseup', onPointerUp, false);
+            canvas.addEventListener('touchend', onPointerUp, false);
+            
+            // Hide instructions
+            setTimeout(() => {
+                const instructions = document.getElementById('instructions');
+                if (instructions) instructions.style.opacity = '0';
+            }, 6000);
+            
+            animate();
         }
 
-        // --- NODE CLASS ---
-        class Node {
-            constructor(data, x, y, z) {
-                Object.assign(this, data); 
-                
-                this.pos = new Vector(x, y); 
-                this.vel = new Vector(0, 0); 
-                this.acc = new Vector(0, 0); 
-                
-                this.z = z; 
-                this.velZ = Math.random() * 0.1 - 0.05;
-                this.accZ = 0;
-                this.zOscillationSpeed = Math.random() * 0.02 + 0.01;
-                
-                this.baseSize = Math.random() * 30 + 35;
-                this.size = this.baseSize; 
-                this.sizePhase = Math.random() * 360; 
-                this.sizeOscillationAmount = Math.random() * 1 + 0.5; 
-                this.sizeOscillationSpeed = Math.random() * 1 + 0.5;
-                
-                this.isDragging = false;
-            }
-
-            applyForces() {
-                this.acc.mult(0); 
-                const center = {x: width / 2, y: height / 2};
-
-                for (let other of nodes) {
-                    if (other !== this) {
-                        const force = Vector.sub(this.pos, other.pos);
-                        let distance = force.mag();
-                        const minDistance = (this.size + other.size) / 2;
-                        distance = Math.min(Math.max(distance, minDistance), 150);
-                        
-                        let strength;
-                        if (distance < minDistance * 1.5) { 
-                            // Stronger inverse distance force when very close to actively push apart
-                            strength = -STRONG_REPULSION_FORCE / distance; 
-                        } else {
-                            // Milder force for general physics
-                            strength = -SLIGHT_REPULSION_FORCE / (distance * distance); 
-                        }
-                        
-                        force.setMag(strength);
-                        this.acc.add(force);
-                    }
-                }
-
-                // Centering force
-                const centerForce = Vector.sub(center, this.pos);
-                centerForce.mult(SLIGHT_CENTERING_FORCE);
-                this.acc.add(centerForce);
-
-                // Boundary force
-                const distToCenter = Math.sqrt(Math.pow(this.pos.x - center.x, 2) + Math.pow(this.pos.y - center.y, 2));
-                if (distToCenter > MAX_DISTANCE_FROM_CENTER) {
-                    const boundaryForce = Vector.sub(center, this.pos);
-                    let strength = BOUNDARY_STRENGTH * (distToCenter - MAX_DISTANCE_FROM_CENTER); 
-                    boundaryForce.setMag(strength);
-                    this.acc.add(boundaryForce);
-                }
-            }
-
-            update(frameCount) {
-                if (!this.isDragging) {
-                    // 2D Movement
-                    this.vel.add(this.acc);
-                    this.vel.mult(0.999999); 
-                    this.pos.add(this.vel);
-
-                    // 3D Movement (Subtle Z-oscillation)
-                    this.accZ = Math.sin(frameCount * this.zOscillationSpeed * 0.05) * (Math.random() * 0.0004 + 0.0001);
-                    this.velZ += this.accZ;
-                    this.velZ *= 0.999; 
-                    this.z += this.velZ;
-                    this.z = Math.min(Math.max(this.z, 10), Z_DEPTH_RANGE - 10); 
-                }
-
-                const oscillation = Math.sin((frameCount * this.sizeOscillationSpeed * 0.05) + (this.sizePhase * PI/180)) * this.sizeOscillationAmount;
-                this.size = this.baseSize + oscillation;
-            }
-
-            getFinalSize() {
-                // Returns the perceived pixel size on screen (before global scale)
-                const perspectiveScale = Z_FOCAL_LENGTH - (this.z / Z_DEPTH_RANGE) * (Z_FOCAL_LENGTH - 0.5); 
-                return this.size * perspectiveScale;
-            }
-            
-            getOpacity() {
-                // Map Z depth to opacity (100 to 255)
-                return 100 + (this.z / Z_DEPTH_RANGE) * 155; 
-            }
-        }
+        // --- CORE EVENT HANDLERS ---
         
-        // --- DRAWING AND ANIMATION LOOP ---
-
-        let frameCount = 0;
-
-        function drawNode(node, isHovered) {
-            const finalSize = node.getFinalSize();
-            const radius = finalSize / 2;
-            const opacity = node.getOpacity();
+        function getPointerCoordinates(event, isEndEvent = false) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            let clientX, clientY;
             
-            ctx.save();
-            ctx.translate(node.pos.x, node.pos.y);
+            const pointer = isEndEvent ? event.changedTouches?.[0] : event.touches?.[0] || event;
 
-            // 1. Draw the Sphere Background (Monochrome Effect)
-            const pulse = 15 * Math.sin(frameCount * 0.01);
-            const dynamicBrightness = Math.min(Math.max(parseInt(node.color.substring(1,3), 16) + pulse, 50), 255);
-            const mainColor = `rgba(${dynamicBrightness}, ${dynamicBrightness}, ${dynamicBrightness}, ${opacity / 255})`; 
-            
-            ctx.beginPath();
-            ctx.arc(0, 0, radius, 0, 2 * PI);
-            ctx.fillStyle = mainColor;
-            ctx.fill();
-
-            // 2. Add Planet-like Shading (Radial Gradient)
-            const gradient = ctx.createRadialGradient(
-                -radius / 3, -radius / 3, radius * 0.1, 
-                -radius / 3, -radius / 3, radius * 1.2   
-            );
-            const highlightOpacity = opacity / 255 * 0.3;
-            const shadowOpacity = opacity / 255 * 0.4;
-
-            gradient.addColorStop(0, `rgba(255, 255, 255, ${highlightOpacity})`); 
-            gradient.addColorStop(0.7, `rgba(${dynamicBrightness}, ${dynamicBrightness}, ${dynamicBrightness}, ${highlightOpacity / 4})`); 
-            gradient.addColorStop(1, `rgba(0, 0, 0, ${shadowOpacity})`); 
-
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(0, 0, radius, 0, 2 * PI);
-            ctx.fill();
-
-            // 3. Draw subtle border
-            // Note: Line width needs to be scaled by 1/currentScale to remain constant size on screen
-            ctx.strokeStyle = `rgba(255, 255, 255, ${opacity / 255})`; 
-            ctx.lineWidth = 0.5 / currentScale; 
-            ctx.stroke();
-
-            ctx.restore(); 
-
-            // 4. Draw Interaction Highlight
-            if (node.isDragging || isHovered) {
-                let highlightAlpha = node.isDragging ? 255 : 150; 
-                let highlightWeight = node.isDragging ? 3 / currentScale : 1.5 / currentScale; 
-
-                ctx.strokeStyle = `rgba(255, 255, 255, ${highlightAlpha / 255})`; 
-                ctx.lineWidth = highlightWeight;
-                
-                ctx.beginPath();
-                ctx.arc(node.pos.x, node.pos.y, radius * 1.15, 0, 2 * PI); 
-                ctx.stroke();
-            }
-            
-            // 5. Draw Title
-            ctx.fillStyle = 'white'; 
-            ctx.font = `${10 / currentScale}px Inter`; 
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText(node.title, node.pos.x, node.pos.y + radius + (20 / currentScale)); 
-        }
-        
-        function drawEdge(nodeA, nodeB, style) {
-            // Check visibility based on current filter
-            const isFiltered = currentFilter === 'all' || 
-                               nodeA.category === currentFilter || 
-                               nodeB.category === currentFilter;
-            if (!isFiltered) return;
-
-            const edgeColor = `rgba(150, 150, 150, 0.78)`; 
-            ctx.strokeStyle = edgeColor;
-            ctx.lineWidth = style.weight / currentScale; 
-            
-            ctx.save();
-
-            // For dashed/dotted lines, we need to manually set the dash pattern
-            if (style.type !== 'solid') {
-                const dashLength = style.type === 'dotted' ? 2 / currentScale : 10 / currentScale;
-                const gapLength = style.type === 'dotted' ? 5 / currentScale : 5 / currentScale;
-                const totalDash = dashLength + gapLength;
-                
-                ctx.setLineDash([dashLength, gapLength]);
-                ctx.lineDashOffset = (frameCount * style.speed) % totalDash;
+            if (pointer) {
+                clientX = pointer.clientX;
+                clientY = pointer.clientY;
             } else {
-                ctx.setLineDash([]);
-                ctx.lineDashOffset = 0;
+                clientX = event.clientX || 0;
+                clientY = event.clientY || 0;
             }
             
-            ctx.beginPath();
-            ctx.moveTo(nodeA.pos.x, nodeA.pos.y);
-            ctx.lineTo(nodeB.pos.x, nodeB.pos.y);
-            ctx.stroke();
+            mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
             
-            ctx.restore();
+            return { clientX, clientY };
         }
 
-        function drawStars() {
-            ctx.save();
-            const nodesCenter = {x: width / 2, y: height / 2};
-            // stars should pan relative to the viewOffset pivot, but with parallax
-            const viewDiffX = viewOffset.x - nodesCenter.x;
-            const viewDiffY = viewOffset.y - nodesCenter.y;
+        function onPointerDown(event) {
+            if (isModalOpen) return;
+            event.preventDefault(); 
             
-            ctx.fillStyle = 'white';
+            const pointerCoords = getPointerCoordinates(event);
             
-            for (let star of stars) {
-                star.x += star.velX; 
-                star.y += star.velY;
+            clickStartScreen.x = pointerCoords.clientX;
+            clickStartScreen.y = pointerCoords.clientY;
+            
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodeGroup.children);
+            
+            if (intersects.length > 0) {
+                const intersection = intersects[0];
+                draggedNode = intersection.object;
                 
-                // Adjust position based on parallax and view offset
-                const x = star.x - viewDiffX * star.parallaxFactor; 
-                const y = star.y - viewDiffY * star.parallaxFactor;
-
-                const fade = Math.sin(Date.now() * 0.0005 * star.parallaxFactor) * 0.5 + 0.5;
+                controls.enabled = false;
                 
-                ctx.globalAlpha = star.alpha / 255;
-                
-                // Draw stars centered
-                ctx.beginPath();
-                ctx.arc(x + width/2, y + height/2, star.size * fade, 0, 2 * PI);
-                ctx.fill();
-                
-                if (frameCount % 180 === 0) { 
-                   star.velX = Math.random() * 0.04 - 0.02;
-                   star.velY = Math.random() * 0.04 - 0.02;
-                }
-            }
-            ctx.globalAlpha = 1.0;
-            ctx.restore();
-        }
+                plane.setFromNormalAndCoplanarPoint(camera.getWorldDirection(plane.normal), intersection.point);
+                offset.copy(intersection.point).sub(draggedNode.position);
 
-        function gameLoop() {
-            frameCount++;
-            
-            // 1. Clear Canvas and Draw Background
-            // We use the full width and height which are scaled by DPR internally
-            ctx.fillStyle = 'black';
-            // The canvas width/height are the *logical* pixel sizes for drawing
-            ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr); 
-            
-            // 2. Draw Stars (always drawn relative to the center)
-            drawStars();
-
-            // 3. Apply View Transformations (Pan/Zoom around the viewOffset pivot)
-            ctx.save();
-            ctx.translate(viewOffset.x, viewOffset.y); 
-            ctx.scale(currentScale, currentScale); 
-            ctx.translate(-viewOffset.x, -viewOffset.y); 
-
-            // 4. Update Physics
-            for (let node of nodes) {
-                node.applyForces(); 
-                node.update(frameCount);      
-            }
-
-            // 5. Update Edge Styles (for animation)
-            for (let style of edgeStyles) {
-                if (frameCount > style.transitionFrame + style.duration) {
-                    Object.assign(style, getRandomStyle()); 
-                    style.transitionFrame = frameCount;
-                    style.duration = Math.random() * 200 + 200; 
-                }
-            }
-
-            // 6. Draw Edges
-            for (let i = 0; i < EDGES.length; i++) {
-                const edge = EDGES[i];
-                const nodeA = nodes.find(n => n.id === edge.from);
-                const nodeB = nodes.find(n => n.id === edge.to);
-                if (nodeA && nodeB) {
-                    drawEdge(nodeA, nodeB, edgeStyles[i]);
-                }
-            }
-            
-            // 7. Find Hovered Node for cursor feedback
-            const collisionResult = getNodeAtScreenCoords(mouseX, mouseY);
-            const hoveredNode = collisionResult ? collisionResult.node : null;
-
-            // Set cursor based on interaction state
-            canvas.style.cursor = (draggedNode || hoveredNode || isViewPanning) ? 'pointer' : 'grab';
-
-            // 8. Draw Nodes (Far-to-Near Z-order)
-            const sortedNodes = nodes.slice().sort((a, b) => b.z - a.z); 
-            for (let node of sortedNodes) {
-                if (currentFilter === 'all' || node.category === currentFilter) {
-                    drawNode(node, node === hoveredNode); 
-                }
-            }
-
-            ctx.restore(); // Restore view transformations
-
-            // 9. Loop
-            requestAnimationFrame(gameLoop);
-        }
-        
-        // --- HELPER FUNCTION: Correctly translates screen coords to world coords and checks collision ---
-        /**
-         * Converts screen coordinates to world coordinates and checks for node collision.
-         * Includes mobile touch padding for forgiving targets.
-         * @returns {object|null} { node, unscaledX, unscaledY } of the topmost collided node, or null.
-         */
-        function getNodeAtScreenCoords(screenX, screenY) {
-            // Screen coordinates are already adjusted by touch listeners, but we need to normalize them
-            // to the logical pixel space (since mouseX/Y track actual screen pixels, which is scaled by DPR)
-            const logicalX = screenX / dpr; 
-            const logicalY = screenY / dpr; 
-
-            // Inverse Transform: This reverses the T/S/T transformation to get the point in world space.
-            const unscaledX = (logicalX - viewOffset.x) / currentScale + viewOffset.x;
-            const unscaledY = (logicalY - viewOffset.y) / currentScale + viewOffset.y;
-            
-            // Apply touch padding only on small screens for better UX
-            const touchPadding = window.innerWidth <= 640 ? TOUCH_PADDING_FACTOR : 1.0; 
-
-            // Check for node collision (near-to-far)
-            const clickableNodes = nodes.slice().sort((a, b) => b.z - a.z); 
-
-            for (let node of clickableNodes) {
-                if (currentFilter === 'all' || node.category === currentFilter) {
-                    const finalSize = node.getFinalSize();
-                    
-                    // Convert screen size (finalSize) to world size (worldRadius)
-                    const worldRadius = (finalSize / 2) / currentScale; 
-
-                    // Calculate distance in WORLD coordinates
-                    const distance = Math.sqrt(Math.pow(node.pos.x - unscaledX, 2) + Math.pow(node.pos.y - unscaledY, 2));
-
-                    // Check distance against padded world radius
-                    if (distance < worldRadius * touchPadding) { 
-                        return { node, unscaledX, unscaledY };
-                    }
-                }
-            }
-            return null;
-        }
-
-
-        // --- INITIALIZATION ---
-
-        function initStars() {
-            // Note: Star positions are initialized in logical pixel space (width/height)
-            for (let i = 0; i < STAR_COUNT; i++) {
-                const radius = Math.random() * Math.max(width, height) * 1.2; 
-                const angle = Math.random() * 2 * PI;
-                stars.push({
-                    x: radius * Math.cos(angle), 
-                    y: radius * Math.sin(angle), 
-                    size: Math.random() * 2 + 1,
-                    alpha: Math.random() * 155 + 100,
-                    parallaxFactor: Math.random() * 0.15 + 0.05, 
-                    velX: Math.random() * 0.02 - 0.01,
-                    velY: Math.random() * 0.04 - 0.02
-                });
+                draggedNode.material.emissive.set(0x00ff00);
             }
         }
 
-        /**
-         * Initializes nodes with a minimum separation distance to prevent overlap.
-         */
-        function initNodes() {
-            const center = {x: width / 2, y: height / 2};
-            const placementRadius = Math.min(width, height) * 0.45; 
+        function onPointerMove(event) {
+            if (isModalOpen) return;
+            event.preventDefault(); 
             
-            nodes = [];
-            
-            ARTWORKS.forEach((data) => {
-                let newNode = null;
-                let attempts = 0;
-                let placed = false;
-                
-                while (!placed && attempts < 100) {
-                    const r = Math.random() * placementRadius;
-                    const theta = Math.random() * 2 * PI;
-                    
-                    const x = center.x + r * Math.cos(theta);
-                    const y = center.y + r * Math.sin(theta);
-                    const z = Math.random() * (Z_DEPTH_RANGE - 20) + 10; 
-                    
-                    newNode = new Node(data, x, y, z);
-                    
-                    let overlaps = false;
-                    for (const existingNode of nodes) {
-                        const distance = Math.sqrt(
-                            Math.pow(newNode.pos.x - existingNode.pos.x, 2) + 
-                            Math.pow(newNode.pos.y - existingNode.pos.y, 2)
-                        );
-                        if (distance < MIN_NODE_SEPARATION) { 
-                            overlaps = true;
-                            break;
+            getPointerCoordinates(event);
+
+            if (draggedNode) {
+                raycaster.setFromCamera(mouse, camera);
+
+                if (raycaster.ray.intersectPlane(plane, intersection)) {
+                    draggedNode.position.copy(intersection).sub(offset);
+                }
+            } else {
+                // Hover effect only if not dragging
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(nodeGroup.children);
+
+                nodeGroup.children.forEach(node => {
+                    if (node.material && node.userData.isNode) {
+                        if (node.material.emissive.getHex() !== 0x00ff00) {
+                            node.material.emissive.copy(node.material.color).multiplyScalar(0.2);
                         }
                     }
-                    
-                    if (!overlaps) {
-                        nodes.push(newNode);
-                        placed = true;
-                    }
-                    attempts++;
-                }
+                });
 
-                if (!placed) {
-                    const x = center.x + Math.random() * 10 - 5;
-                    const y = center.y + Math.random() * 10 - 5;
-                    const z = Math.random() * (Z_DEPTH_RANGE - 20) + 10; 
-                    nodes.push(new Node(data, x, y, z));
+                if (intersects.length > 0) {
+                    renderer.domElement.style.cursor = 'pointer';
+                    if (intersects[0].object.material.emissive.getHex() !== 0x00ff00) {
+                        intersects[0].object.material.emissive.set(0x00ffcc);
+                    }
+                } else {
+                    renderer.domElement.style.cursor = controls.enabled ? 'grab' : 'default';
+                }
+            }
+        }
+
+        function onPointerUp(event) {
+            if (isModalOpen) return;
+            
+            if (draggedNode) {
+                const pointerCoords = getPointerCoordinates(event, true); 
+                
+                const distanceMoved = Math.hypot(
+                    pointerCoords.clientX - clickStartScreen.x,
+                    pointerCoords.clientY - clickStartScreen.y
+                );
+                
+                draggedNode.material.emissive.copy(draggedNode.material.color).multiplyScalar(0.2);
+
+                if (distanceMoved < CLICK_THRESHOLD) {
+                    // --- CLICK DETECTED ---
+                    showProjectModal(draggedNode.userData);
+                } else {
+                    // --- DRAG/FLICK DETECTED ---
+                    const flickX = (pointerCoords.clientX - clickStartScreen.x) * 0.005;
+                    const flickY = (pointerCoords.clientY - clickStartScreen.y) * 0.005;
+                    
+                    draggedNode.userData.vel.set(flickX, -flickY, 0).applyQuaternion(camera.quaternion);
+                }
+                
+                controls.enabled = true;
+                draggedNode = null;
+            }
+        }
+        
+        // --- UTILITY FUNCTIONS ---
+        
+        function createLabels() {
+            const labelContainer = document.getElementById('label-container');
+            
+            nodes.forEach(node => {
+                const data = node.userData;
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'node-label';
+                labelDiv.textContent = data.title;
+                labelDiv.id = `label-${data.id}`;
+                
+                node.userData.label = labelDiv;
+                labelContainer.appendChild(labelDiv);
+            });
+        }
+
+        function updateLabels() {
+            nodes.forEach(node => {
+                const label = node.userData.label;
+                if (!label) return;
+
+                tempV.setFromMatrixPosition(node.matrixWorld);
+                tempV.project(camera);
+
+                const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
+                const y = (-tempV.y * 0.5 + 0.5) * window.innerHeight;
+
+                label.style.left = `${x}px`;
+                label.style.top = `${y}px`;
+
+                const isVisible = node.visible && (tempV.z < 1);
+                label.style.display = isVisible ? 'block' : 'none';
+                
+                const distance = camera.position.distanceTo(node.position);
+                const opacity = Math.min(1.0, 100 / distance); 
+                label.style.opacity = isVisible ? opacity : 0;
+            });
+        }
+        
+        function createBackgroundStars(count) {
+            const geometry = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+            const color = new THREE.Color();
+            
+            for (let i = 0; i < count; i++) {
+                const r = Math.random() * 500 + 100;
+                const theta = Math.random() * 2 * Math.PI;
+                const phi = Math.acos(Math.random() * 2 - 1);
+
+                positions.push(
+                    r * Math.sin(phi) * Math.cos(theta),
+                    r * Math.sin(phi) * Math.sin(theta),
+                    r * Math.cos(phi)
+                );
+
+                color.setHSL(Math.random() * 0.1 + 0.5, 0.7, Math.random() * 0.5 + 0.5); 
+                colors.push(color.r, color.g, color.b);
+            }
+
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 0.8,
+                vertexColors: true,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                sizeAttenuation: true
+            });
+
+            const starField = new THREE.Points(geometry, material);
+            scene.add(starField);
+        }
+
+        function createGalaxyNetwork() {
+            const geometry = new THREE.SphereGeometry(NODE_RADIUS, 32, 32);
+
+            ARTWORKS.forEach(data => {
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(Math.random() * 2 - 1);
+                const r = Math.random() * GALAXY_RADIUS;
+
+                const material = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(data.color),
+                    metalness: 0.1,
+                    roughness: 0.5,
+                    emissive: new THREE.Color(data.color).multiplyScalar(0.2)
+                });
+
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.set(
+                    r * Math.sin(phi) * Math.cos(theta),
+                    r * Math.sin(phi) * Math.sin(theta),
+                    r * Math.cos(phi)
+                );
+                
+                sphere.userData = {
+                    ...data,
+                    originalPosition: sphere.position.clone(),
+                    animationOffset: Math.random() * 2 * Math.PI,
+                    vel: new THREE.Vector3(0, 0, 0),
+                    isNode: true
+                };
+
+                nodeGroup.add(sphere);
+                nodes.push(sphere);
+            });
+
+            EDGES.forEach(edge => {
+                const nodeA = nodes.find(n => n.userData.id === edge.from);
+                const nodeB = nodes.find(n => n.userData.id === edge.to);
+
+                if (nodeA && nodeB) {
+                    const material = new THREE.LineBasicMaterial({
+                        color: 0x444444,
+                        linewidth: 1,
+                        transparent: true,
+                        opacity: 0.7
+                    });
+
+                    const geometry = new THREE.BufferGeometry().setFromPoints([
+                        nodeA.position, nodeB.position
+                    ]);
+
+                    const line = new THREE.LineSegments(geometry, material);
+                    lineGroup.add(line);
+                    edges.push({ mesh: line, nodeA: nodeA, nodeB: nodeB });
+                }
+            });
+        }
+        
+        function animate(time) {
+            requestAnimationFrame(animate);
+
+            nodes.forEach(node => {
+                const data = node.userData;
+
+                const pulse = Math.sin(time * 0.001 + data.animationOffset) * 0.5;
+                node.scale.setScalar(1 + pulse * 0.05);
+
+                node.position.add(data.vel);
+                data.vel.multiplyScalar(0.99);
+
+                const distanceToCenter = node.position.length();
+                if (distanceToCenter > GALAXY_RADIUS * 1.5) {
+                    node.position.multiplyScalar(0.999);
                 }
             });
 
-            // Initialize edge styles
-            edgeStyles = EDGES.map(() => ({
-                type: ['solid', 'dotted', 'dashed'][Math.floor(Math.random() * 3)],
-                weight: Math.random() * 2.7 + 0.8,
-                speed: Math.random() * -0.3 - 0.3, 
-                transitionFrame: 0,
-                duration: Math.random() * 200 + 200, 
-            }));
-        }
-
-        function getRandomStyle() {
-            return {
-                type: ['solid', 'dotted', 'dashed'][Math.floor(Math.random() * 3)],
-                weight: Math.random() * 2.7 + 0.8,
-                speed: Math.random() * -0.3 - 0.3, 
-            };
-        }
-
-        function setupCanvas() {
-            canvas = document.getElementById('galaxyCanvas');
-            ctx = canvas.getContext('2d');
-            
-            resizeCanvas();
-            
-            viewOffset.x = width / 2;
-            viewOffset.y = height / 2;
-            
-            initStars();
-            initNodes();
-            
-            // Setup Listeners
-            window.addEventListener('resize', resizeCanvas);
-            canvas.addEventListener('wheel', handleMouseWheel);
-            canvas.addEventListener('mousedown', handleMouseDown);
-            canvas.addEventListener('mousemove', handleMouseMove);
-            canvas.addEventListener('mouseup', handleMouseUp);
-
-            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-            canvas.addEventListener('touchend', handleTouchEnd);
-
-            // Start the main loop
-            requestAnimationFrame(gameLoop);
-        }
-
-        /**
-         * CRITICAL FIX: Handles high-DPI (Retina) scaling for sharp rendering.
-         */
-        function resizeCanvas() {
-            // Logical width/height (what the CSS sees)
-            width = window.innerWidth;
-            height = window.innerHeight;
-            
-            // Set canvas drawing buffer size (multiplied by DPR)
-            canvas.width = width * dpr;
-            canvas.height = height * dpr;
-            
-            // Scale the context so drawing commands work in logical pixel space
-            ctx.scale(dpr, dpr);
-
-            // Recenter the pivot point when resizing
-            viewOffset.x = width / 2;
-            viewOffset.y = height / 2;
-        }
-
-        // --- INTERACTION LOGIC ---
-
-        // mouseX/Y now track the *actual* screen coordinates, which need to be divided by DPR for game logic
-        let mouseX = 0; 
-        let mouseY = 0;
-
-        function handleMouseWheel(event) {
-            event.preventDefault(); // Prevent default browser zoom/scroll
-            if (isModalOpen) return;
-
-            const zoomRate = 0.1;
-            let newScale = event.deltaY < 0 ? currentScale + zoomRate : currentScale - zoomRate;
-            currentScale = Math.min(Math.max(newScale, 0.5), 5.0); 
-        }
-
-        function handleMouseDown(event) {
-            if (isModalOpen || event.button !== 0) return; // Only left-click
-            
-            // Store screen coordinates for click distance check
-            initialClickX = event.clientX;
-            initialClickY = event.clientY;
-            
-            mouseX = event.clientX;
-            mouseY = event.clientY;
-
-            const collisionResult = getNodeAtScreenCoords(mouseX, mouseY);
-            
-            if (collisionResult) {
-                const { node, unscaledX, unscaledY } = collisionResult;
-                draggedNode = node;
-                draggedNode.isDragging = true;
-                draggedNode.vel.mult(0); 
+            edges.forEach(edge => {
+                const positions = edge.mesh.geometry.attributes.position.array;
                 
-                // Calculate offset in WORLD coordinates
-                dragOffsetX = node.pos.x - unscaledX;
-                dragOffsetY = node.pos.y - unscaledY;
-                return; 
-            }
-        }
+                positions[0] = edge.nodeA.position.x;
+                positions[1] = edge.nodeA.position.y;
+                positions[2] = edge.nodeA.position.z;
 
-        function handleMouseMove(event) {
-            const prevMouseX = mouseX;
-            const prevMouseY = mouseY;
-            mouseX = event.clientX;
-            mouseY = event.clientY;
-
-            if (isModalOpen) return;
-
-            if (draggedNode) {
-                // Get the world position of the new mouse location (using logical coordinates)
-                const logicalX = mouseX / dpr;
-                const logicalY = mouseY / dpr;
-
-                const newUnscaledX = (logicalX - viewOffset.x) / currentScale + viewOffset.x;
-                const newUnscaledY = (logicalY - viewOffset.y) / currentScale + viewOffset.y;
-
-                // Move the node to the new world position + the offset
-                draggedNode.pos.x = newUnscaledX + dragOffsetX;
-                draggedNode.pos.y = newUnscaledY + dragOffsetY;
-            } else if (event.buttons === 1) { // If left button is down for panning (Desktop)
-                viewOffset.x += (mouseX - prevMouseX) / dpr;
-                viewOffset.y += (mouseY - prevMouseY) / dpr;
-            }
-        }
-
-        function handleMouseUp(event) {
-            if (draggedNode) {
-                // Calculate movement in screen pixels
-                const totalMovement = Math.sqrt(
-                    Math.pow(initialClickX - event.clientX, 2) + 
-                    Math.pow(initialClickY - event.clientY, 2)
-                );
-
-                if (totalMovement < CLICK_THRESHOLD) {
-                    showProjectModal(draggedNode); 
-                    draggedNode.vel.mult(0); // Stop movement immediately after tap
-                } else {
-                    // Apply velocity for flick effect
-                    draggedNode.vel.x = (event.clientX - initialClickX) * 0.02; 
-                    draggedNode.vel.y = (event.clientY - initialClickY) * 0.02;
-                }
+                positions[3] = edge.nodeB.position.x;
+                positions[4] = edge.nodeB.position.y;
+                positions[5] = edge.nodeB.position.z;
                 
-                draggedNode.isDragging = false;
-                draggedNode = null;
-            }
+                edge.mesh.geometry.attributes.position.needsUpdate = true;
+            });
+            
+            controls.update();
+            updateLabels();
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
         }
         
-        // --- TOUCH INTERACTION LOGIC (Optimized for Mobile) ---
-        
-        function handleTouchStart(event) {
-            if (isModalOpen) return;
-            event.preventDefault(); 
-
-            // Update mouseX/Y with the first touch point (screen coordinates)
-            const touch = event.touches[0];
-            initialClickX = touch.clientX;
-            initialClickY = touch.clientY;
-            mouseX = touch.clientX;
-            mouseY = touch.clientY;
-
-            // Single Finger (Node Drag or View Pan)
-            if (event.touches.length === 1) {
-                const collisionResult = getNodeAtScreenCoords(mouseX, mouseY);
-
-                if (collisionResult) {
-                    const { node, unscaledX, unscaledY } = collisionResult;
-                    draggedNode = node;
-                    draggedNode.isDragging = true;
-                    draggedNode.vel.mult(0); 
-                    dragOffsetX = node.pos.x - unscaledX;
-                    dragOffsetY = node.pos.y - unscaledY;
-                    isViewPanning = false; 
-                    return; 
-                }
-                
-                // If no node found, start panning the view
-                draggedNode = null;
-                isViewPanning = true;
-                
-            // Two Fingers (Pinch Zoom)
-            } else if (event.touches.length === 2) {
-                isPinching = true;
-                isViewPanning = false;
-                draggedNode = null;
-                previousTouchDistance = Math.hypot(
-                    event.touches[0].clientX - event.touches[1].clientX,
-                    event.touches[0].clientY - event.touches[1].clientY
-                );
-            }
+        function populateFilterMenu() {
+            const uniqueCategories = Array.from(new Set(ARTWORKS.map(a => a.category))).sort();
+            const MENU_ITEMS = [
+                { category: 'Show All Projects', filterKey: 'all' }, 
+                ...uniqueCategories.map(c => ({ category: c, filterKey: c }))
+            ];
+            
+            const categoryFilter = document.getElementById('category-filter');
+             MENU_ITEMS.forEach(item => {
+                 const option = document.createElement('option');
+                 option.value = item.filterKey;
+                 option.textContent = item.category;
+                 categoryFilter.appendChild(option);
+             });
+             
+             categoryFilter.addEventListener('change', (e) => setFilter(e.target.value));
         }
 
-        function handleTouchMove(event) {
-            if (isModalOpen) return;
-            event.preventDefault(); 
-
-            const prevMouseX = mouseX;
-            const prevMouseY = mouseY;
+        function setFilter(filterKey) {
+            currentFilter = filterKey;
             
-            const touch = event.touches[0] || event.changedTouches[0];
-            mouseX = touch ? touch.clientX : mouseX;
-            mouseY = touch ? touch.clientY : mouseY;
-
-            if (event.touches.length === 2 && isPinching) {
-                // Pinch Zoom Logic 
-                const currentTouchDistance = Math.hypot(
-                    event.touches[0].clientX - event.touches[1].clientX,
-                    event.touches[0].clientY - event.touches[1].clientY
-                );
-
-                if (previousTouchDistance > 0) {
-                    const distanceRatio = currentTouchDistance / previousTouchDistance;
-                    let newScale = currentScale * distanceRatio;
-                    currentScale = Math.min(Math.max(newScale, 0.5), 5.0);
+            nodes.forEach(node => {
+                const isVisible = filterKey === 'all' || node.userData.category === filterKey;
+                node.visible = isVisible;
+                if (node.userData.label) {
+                    node.userData.label.style.display = isVisible ? 'block' : 'none';
                 }
-                previousTouchDistance = currentTouchDistance;
+            });
 
-            } else if (event.touches.length === 1 && !isPinching) {
-                // Single Touch Action (Node Drag or View Pan)
-                if (draggedNode) {
-                    // Get the world position of the new touch location (using logical coordinates)
-                    const logicalX = mouseX / dpr;
-                    const logicalY = mouseY / dpr;
-                    
-                    const newUnscaledX = (logicalX - viewOffset.x) / currentScale + viewOffset.x;
-                    const newUnscaledY = (logicalY - viewOffset.y) / currentScale + viewOffset.y;
-    
-                    // Move the node to the new world position + the offset
-                    draggedNode.pos.x = newUnscaledX + dragOffsetX;
-                    draggedNode.pos.y = newUnscaledY + dragOffsetY;
-                } else if (isViewPanning) { 
-                    // Panning the view (must convert movement delta to logical pixels)
-                    viewOffset.x += (mouseX - prevMouseX) / dpr;
-                    viewOffset.y += (mouseY - prevMouseY) / dpr;
-                }
-            }
+            edges.forEach(edge => {
+                const nodeAVisible = edge.nodeA.visible;
+                const nodeBVisible = edge.nodeB.visible;
+                edge.mesh.visible = nodeAVisible && nodeBVisible; 
+            });
         }
 
-        function handleTouchEnd(event) {
-            isPinching = false;
-            previousTouchDistance = 0;
-            
-            if (draggedNode) {
-                 // Check if it was a quick tap (tap) or a long drag (flick/move)
-                 // Use the last recorded mouseX/Y which should be the position of the touch release
-                 const totalMovement = Math.sqrt(
-                    Math.pow(initialClickX - mouseX, 2) + 
-                    Math.pow(initialClickY - mouseY, 2)
-                );
+        // --- MODAL LOGIC ---
 
-                if (totalMovement < CLICK_THRESHOLD) {
-                    showProjectModal(draggedNode); 
-                    draggedNode.vel.mult(0); 
-                } else {
-                    // Apply velocity for flick effect (using total displacement, adjusted)
-                    draggedNode.vel.x = (mouseX - initialClickX) * 0.02; 
-                    draggedNode.vel.y = (mouseY - initialClickY) * 0.02;
-                }
-                
-                draggedNode.isDragging = false;
-                draggedNode = null;
-            }
-            
-            isViewPanning = false; // Reset pan state for next touch
-        }
-
-        // --- MODAL & DROPDOWN LOGIC ---
-        
         const projectModal = document.getElementById('projectModal');
         const modalDetailsDiv = document.getElementById('modal-project-details');
         const actionMessage = document.getElementById('actionMessage');
 
-        function showProjectModal(node) {
+        function showProjectModal(data) {
             isModalOpen = true; 
             document.body.classList.add('modal-open'); 
-            currentProjectUrl = node.url; 
+            currentProjectUrl = data.url; 
             actionMessage.classList.add('hidden'); 
             
-            // Populate the modal content
             modalDetailsDiv.innerHTML = `
                 <header>
-                    <h3 class="text-3xl font-extrabold text-white mb-1" id="modal-title">${node.title}</h3>
-                    <p class="text-sm font-medium uppercase tracking-wider text-indigo-400">${node.category}</p>
+                    <h3 class="text-3xl font-extrabold text-white mb-1" id="modal-title">${data.title}</h3>
+                    <p class="category">${data.category}</p>
                 </header>
                 
-                <!-- Image Preview -->
-                <div class="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden shadow-xl mt-4">
-                    <img src="${node.image_path}" alt="${node.title}" class="modal-card-image w-full object-cover" 
+                <div class="image-card">
+                    <img src="${data.image_path}" alt="${data.title}"
                          onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Project+Visual+Placeholder';">
-                    <div class="p-4">
-                         <p class="text-gray-400 text-sm italic">${node.description}</p>
+                    <div class="description">
+                         <p>${data.description}</p>
                     </div>
                 </div>
 
-                <!-- Tags and Color -->
-                <div class="flex flex-wrap gap-2 pt-2">
-                    ${node.tags.map(tag => `<span class="bg-gray-800 text-gray-300 text-xs font-semibold px-3 py-1 rounded-full border border-gray-700">${tag}</span>`).join('')}
-                    <div class="flex items-center space-x-2 text-sm text-gray-300">
-                        <span class="w-3 h-3 rounded-full border border-gray-500" style="background-color: ${node.color};"></span>
-                        <span class="font-mono text-xs">${node.color}</span>
+                <div class="tag-container">
+                    ${data.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    <div class="color-indicator">
+                        <span class="color-swatch" style="background-color: ${data.color};"></span>
+                        <span style="font-family: monospace; font-size: 0.75rem;">${data.color}</span>
                     </div>
                 </div>
             `;
@@ -962,49 +779,20 @@
             projectModal.classList.remove('hidden');
         }
 
-        function closeProjectModal() {
+        window.closeProjectModal = () => {
             isModalOpen = false; 
             projectModal.classList.add('hidden');
             document.body.classList.remove('modal-open'); 
         }
-        
-        window.closeProjectModal = closeProjectModal; 
 
         function handleFullProjectClick() {
-            actionMessage.textContent = `Navigating to ${currentProjectUrl}... (Closing in 2s)`;
+            actionMessage.textContent = `Simulating navigation to ${currentProjectUrl}... (Closing in 2s)`;
             actionMessage.classList.remove('hidden');
-            
-            setTimeout(() => {
-                closeProjectModal();
-            }, 2000); 
+            setTimeout(window.closeProjectModal, 2000); 
         }
-
-        function setFilter(filterKey) {
-            currentFilter = filterKey;
-        }
-
-        // --- Window Load and Setup ---
-        window.onload = () => {
-             setupCanvas();
-             
-             const categoryFilter = document.getElementById('category-filter');
-
-             MENU_ITEMS.forEach(item => {
-                 const option = document.createElement('option');
-                 option.value = item.filterKey;
-                 option.textContent = item.category;
-                 categoryFilter.appendChild(option);
-             });
-
-             setFilter('all');
-             categoryFilter.addEventListener('change', (e) => setFilter(e.target.value));
-             
-             document.addEventListener('keydown', (e) => {
-                 if (e.key === 'Escape' && isModalOpen) {
-                     closeProjectModal();
-                 }
-             });
-        };
+        
+        // Start the Three.js Application
+        window.onload = init;
     </script>
 </body>
 </html>
