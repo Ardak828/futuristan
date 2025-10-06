@@ -168,6 +168,7 @@
 
         // --- GLOBAL CONFIGS ---
         const SLIGHT_REPULSION_FORCE = 0.005; 
+        const STRONG_REPULSION_FORCE = 0.5; // NEW: Stronger force to prevent dynamic overlap
         const SLIGHT_CENTERING_FORCE = 0.00000005; 
         const BOUNDARY_STRENGTH = 0.0005; 
         const MAX_DISTANCE_FROM_CENTER = 400; 
@@ -176,6 +177,8 @@
         const Z_DEPTH_RANGE = 1000; 
         const Z_FOCAL_LENGTH = 1.5; 
         const PI = Math.PI;
+        // CRITICAL FIX CONFIG: Minimum pixel distance to ensure nodes don't overlap on initial placement
+        const MIN_NODE_SEPARATION = 120; 
         // NEW CONFIG: How much larger the tap target is on mobile (1.8x the visual size)
         const TOUCH_PADDING_FACTOR = 1.8; 
 
@@ -271,7 +274,17 @@
                         let distance = force.mag();
                         const minDistance = (this.size + other.size) / 2;
                         distance = Math.min(Math.max(distance, minDistance), 150);
-                        let strength = -SLIGHT_REPULSION_FORCE / (distance * distance); 
+                        
+                        // NEW LOGIC: Use a much stronger repulsion when nodes are close
+                        let strength;
+                        if (distance < minDistance * 1.5) { 
+                            // Stronger inverse distance force when very close to actively push apart
+                            strength = -STRONG_REPULSION_FORCE / distance; 
+                        } else {
+                            // Milder force for general physics
+                            strength = -SLIGHT_REPULSION_FORCE / (distance * distance); 
+                        }
+                        
                         force.setMag(strength);
                         this.acc.add(force);
                     }
@@ -577,27 +590,62 @@
             }
         }
 
+        /**
+         * CRITICAL FIX: Initializes nodes with a minimum separation distance to prevent overlap.
+         */
         function initNodes() {
             const center = {x: width / 2, y: height / 2};
-            const baseRadius = Math.min(width, height) * 0.3;
-            const totalNodes = ARTWORKS.length;
+            const placementRadius = Math.min(width, height) * 0.45; 
             
-            nodes = ARTWORKS.map((data, index) => {
-                let offsetAngle = index * (2 * PI / totalNodes);
-                let clusterOffset = 0;
-                // Add minor offsets for clustering effect
-                if (data.category === "Abstract Expressionism") clusterOffset = PI/6;
-                if (data.category === "3D Modeling") clusterOffset = PI/3;
-                if (data.category === "Data Visualization") clusterOffset = PI/2;
+            nodes = [];
+            
+            ARTWORKS.forEach((data) => {
+                let newNode = null;
+                let attempts = 0;
+                let placed = false;
+                
+                // Attempt to place the node in a non-overlapping space
+                while (!placed && attempts < 100) {
+                    // Generate random position within the defined radius
+                    const r = Math.random() * placementRadius;
+                    const theta = Math.random() * 2 * PI;
+                    
+                    const x = center.x + r * Math.cos(theta);
+                    const y = center.y + r * Math.sin(theta);
+                    const z = Math.random() * (Z_DEPTH_RANGE - 20) + 10; 
+                    
+                    newNode = new Node(data, x, y, z);
+                    
+                    let overlaps = false;
+                    for (const existingNode of nodes) {
+                        const distance = Math.sqrt(
+                            Math.pow(newNode.pos.x - existingNode.pos.x, 2) + 
+                            Math.pow(newNode.pos.y - existingNode.pos.y, 2)
+                        );
+                        // Check if the distance is less than the required minimum separation
+                        if (distance < MIN_NODE_SEPARATION) { 
+                            overlaps = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!overlaps) {
+                        nodes.push(newNode);
+                        placed = true;
+                    }
+                    attempts++;
+                }
 
-                const radius = baseRadius + (Math.random() * baseRadius * 0.2 - baseRadius * 0.1); 
-                const x = center.x + radius * Math.cos(offsetAngle + clusterOffset);
-                const y = center.y + radius * Math.sin(offsetAngle + clusterOffset);
-                const z = Math.random() * (Z_DEPTH_RANGE - 20) + 10; 
-
-                return new Node(data, x, y, z);
+                // Fallback: If 100 attempts failed (rare), just place it near the center.
+                if (!placed) {
+                    const x = center.x + Math.random() * 10 - 5;
+                    const y = center.y + Math.random() * 10 - 5;
+                    const z = Math.random() * (Z_DEPTH_RANGE - 20) + 10; 
+                    nodes.push(new Node(data, x, y, z));
+                }
             });
-            
+
+            // Initialize edge styles
             edgeStyles = EDGES.map(() => ({
                 type: ['solid', 'dotted', 'dashed'][Math.floor(Math.random() * 3)],
                 weight: Math.random() * 2.7 + 0.8,
