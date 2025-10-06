@@ -1,833 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- CRITICAL: Title is now permanently set to 'futuristan' -->
-    <title>futuristan</title> 
-    <!-- Load Tailwind CSS for modern styling of the surrounding elements -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            overflow: auto; 
-            background-color: #000000; 
-            color: #ffffff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            /* Added to help prevent the 300ms delay */
-            touch-action: manipulation; 
-        }
-        
-        #app-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-
-        #p5-canvas-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10; 
-        }
-        
-        #nav-container, .instructions-overlay {
-            z-index: 100; 
-        }
-
-        #category-filter {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23000000'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd' /%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 0.75rem center;
-            background-size: 1.5em 1.5em;
-            padding-right: 2.5rem;
-            cursor: pointer;
-        }
-        
-        .modal-card-image {
-            height: 200px;
-            object-fit: cover;
-        }
-
-        .modal-open {
-            overflow: hidden;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>futuristan</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
 </head>
-<body class="bg-black">
-
-    <div id="app-container">
-        
-        <!-- === GALAXY VIEW: P5 SKETCH AND UI === -->
-        <div id="p5-canvas-container"></div>
-    
-        <!-- Dropdown Navigation Menu (Top Left) -->
-        <div id="nav-container" class="fixed top-4 left-4 z-[100]"> 
-            <select id="category-filter" class="w-48 sm:w-56 md:w-64 p-3 rounded-xl bg-white/90 border-2 border-black text-black shadow-lg text-sm font-semibold focus:ring-4 focus:ring-black transition cursor-pointer">
-                <!-- Options populated by JS -->
-            </select>
-        </div>
-
-        <!-- Instructions Overlay (Desktop/Tablet) -->
-        <div class="instructions-overlay fixed top-4 right-4 p-3 bg-white/90 rounded-lg text-sm text-gray-700 border border-black shadow-xl hidden sm:block z-[100]">
-            <p class="font-semibold text-black">Universe Navigation (Desktop/Scroll):</p>
-            <ul class="list-disc list-inside mt-1 space-y-0.5">
-                <li>Scroll to **Zoom** in/out.</li>
-                <li>**Drag** a planet to move it.</li>
-                <li>**Quick-click** a planet to open **Project Modal**.</li>
-            </ul>
-        </div>
-        
-        <!-- Instructions Overlay (Mobile/Touch Guide) -->
-        <div class="instructions-overlay fixed top-4 right-4 p-2 bg-white/90 rounded-lg text-xs text-gray-700 border border-black shadow-xl block sm:hidden z-[100]">
-            <p class="font-semibold text-black mb-1">Touch Guide:</p>
-            <p>1 Finger: **Pan/Drag/Tap**</p>
-            <p>2 Fingers: **Pinch to Zoom**</p>
-        </div>
-    </div>
-    
-    <!-- === PROJECT MODAL/OVERLAY WINDOW === -->
-    <div id="projectModal" class="hidden fixed inset-0 z-[1000] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        
-        <!-- Modal Backdrop -->
-        <div class="fixed inset-0 bg-gray-900 bg-opacity-80 transition-opacity" onclick="closeProjectModal()"></div>
-
-        <!-- Modal Container -->
-        <div class="flex items-center justify-center min-h-screen p-4 sm:p-6">
-            
-            <!-- Modal Panel -->
-            <div id="modal-content-panel" class="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-xl mx-auto transform transition-all p-6 sm:p-8 text-white">
-                
-                <!-- Close Button -->
-                <button type="button" 
-                        class="absolute top-4 right-4 text-gray-400 hover:text-white focus:outline-none p-1 transition duration-150 rounded-full hover:bg-gray-800 z-[1010]"
-                        onclick="closeProjectModal()">
-                    <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-
-                <!-- Content will be injected here by JavaScript -->
-                <div id="modal-project-details" class="space-y-4">
-                    <!-- Project details inserted here -->
-                </div>
-
-                <!-- Footer Action Button -->
-                <div class="mt-6">
-                    <button type="button" 
-                            id="fullProjectBtn"
-                            class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-md px-4 py-3 bg-indigo-600 text-base font-semibold text-white hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 transition duration-150 sm:text-lg"
-                            onclick="handleFullProjectClick()">
-                        View Full Project
-                    </button>
-                    <p id="actionMessage" class="mt-3 text-center text-sm text-gray-400 hidden">
-                        Simulating navigation to the full project documentation...
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Load p5.js library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.3/p5.min.js"></script>
-    
-    <script>
-        // === CUSTOMIZATION POINT 1: ARTWORK DATA & IMAGE PATHS ===
-        
-        function randomGrayscaleColor(p) {
-            const g = Math.floor(p.random(80, 255)); 
-            const hex = g.toString(16).padStart(2, '0');
-            return `#${hex}${hex}${hex}`;
-        }
-
-        function randomPlaceholderUrl(p) {
-            const width = Math.floor(p.random(600, 1000));
-            const height = Math.floor(p.random(300, 500));
-            const color = ['888888', '4B5563', '374151'][Math.floor(p.random(3))];
-            const text = encodeURIComponent(['DATA NODE', 'ART PIECE', 'PROJECT'][Math.floor(p.random(3))]);
-            return `https://placehold.co/${width}x{height}/${color}/FFFFFF?text=${text}`;
-        }
-        
-        // Mock p5 object for initial data generation
-        const TEMP_P5_MOCK = { random: (min, max) => Math.random() * (max - min) + min }; 
-
-        const ARTWORKS = [
-            { id: 0, title: "Conceptual Art - Light Form", category: "Conceptual Art", tags: ["#3D", "#SciFi", "#Light"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Conceptual+Art", description: "Explores the interplay between perceived reality and light's formless nature. A decentralized ledger of light-based art experiments.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
-            { id: 1, title: "Digital Portrait Study", category: "Digital Sculpture", tags: ["#Particles", "#Monochrome", "#Face"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Digital+Sculpture", description: "A dynamic study of the human form rendered entirely through particle systems, constantly shifting and reforming. This node holds the original source code.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
-            { id: 2, title: "Wireframe Structure", category: "Abstract Expressionism", tags: ["#Liquid", "#Vibrant", "#Topology"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Abstract+Expressionism", description: "A chaotic yet beautiful expression of connectivity, visualizing network traffic as liquid wireframes. Part of the 'Flow' collection.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
-            { id: 3, title: "Minimalist Grid", category: "Data Visualization", tags: ["#LiDAR", "#Monochrome", "#Clean"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Data+Visualization", description: "A clean, responsive visualization of sensor data. The grid represents data points recorded over a 24-hour period.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
-            { id: 4, title: "Geometric Abstraction", category: "Figurative Particles", tags: ["#Music", "#Aura", "#Synth"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Geometric+Abstraction", description: "Artwork generated by feeding musical frequency data into a geometric algorithm. It changes form based on the last recorded sound input.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
-            { id: 5, title: "Blue and Gold Swirl", category: "Digital Flora", tags: ["#Neon", "#Organic", "#Growth"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Digital+Flora", description: "A simulation of digital organic growth, where the swirl patterns are dictated by L-systems. Represents a seed for future bio-digital creations.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
-            { id: 6, title: "Sphere in Darkness", category: "3D Modeling", tags: ["#Sculpture", "#Hollow", "#Void"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=3D+Modeling", description: "A study in negative space and volumetric light. The sphere is a hollow vessel, symbolizing untapped potential within the network.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
-            { id: 7, title: "Digital Ocean", category: "Abstract 3D", tags: ["#Planets", "#Rings", "#Water"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Abstract+3D", description: "Rendering of an abstract planetary body composed entirely of undulating digital waves. It serves as an archive for water-themed generative art.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
-            { id: 8, title: "Red Web Structure", category: "Data Visualization", tags: ["#Code", "#Network", "#Chaos"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Network+Data", description: "A visualization of chaotic network failure points, highlighting areas of high stress and latency in a vibrant red hue.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
-            { id: 9, title: "Complex Pattern", category: "Digital Painting", tags: ["#Retro", "#Vapor", "#Glitch"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Digital+Painting", description: "An intricate pattern that mimics old-school vector art with digital decay effects. The core pattern evolves daily.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
-        ];
-        
-        const EDGES = [
-            { from: 0, to: 1 }, { from: 1, to: 5 }, { from: 2, to: 6 }, 
-            { from: 3, to: 7 }, { from: 0, to: 4 }, { from: 6, to: 1 }, 
-            { from: 8, to: 9 }, { from: 9, to: 3 }, { from: 4, to: 8 },
-            { from: 7, to: 2 }, 
-        ];
-
-        const uniqueCategories = Array.from(new Set(ARTWORKS.map(a => a.category))).sort();
-        const MENU_ITEMS = [
-            { category: 'Show All Projects', filterKey: 'all' }, 
-            ...uniqueCategories.map(c => ({ category: c, filterKey: c }))
-        ];
-
-
-        // --- 2. GLOBAL STATE AND CONSTANTS ---
-        const SLIGHT_REPULSION_FORCE = 0.005; 
-        const SLIGHT_CENTERING_FORCE = 0.00000005; 
-        const BOUNDARY_STRENGTH = 0.0005; 
-        const MAX_DISTANCE_FROM_CENTER = 400; 
-        
-        // CRITICAL MOBILE FIX: Increased threshold to 80 for very forgiving mobile taps
-        const CLICK_THRESHOLD = 80; 
-        
-        const STAR_COUNT = 1200; 
-        const Z_DEPTH_RANGE = 1000; 
-        const Z_FOCAL_LENGTH = 1.5; 
-
-        let nodes = [];
-        let stars = [];
-        let edgeStyles = []; 
-        let p5Instance; 
-        
-        let currentScale = 1.0; 
-        let viewOffset; 
-        let currentFilter = 'all'; 
-        let currentProjectUrl = ''; 
-        let isModalOpen = false;
-
-        // Variables for Drag/Touch functionality
-        let draggedNode = null;
-        let dragOffsetX = 0;
-        let dragOffsetY = 0;
-        let initialClickX = 0;
-        let initialClickY = 0;
-        
-        // Variables for Pinch-to-Zoom
-        let isPinching = false;
-        let previousTouchDistance = 0;
-        
-        function getRandomStyle(p) {
-            const styleType = p.random(['solid', 'dotted', 'dashed']);
-            const weight = p.random(0.8, 3.5);
-            const speed = p.random(-0.3, -0.6); 
-            return { type: styleType, weight, speed };
-        }
-        
-        function createMonochromeTexture(p, text) {
-            const w = 150;
-            const h = 100;
-            const g = p.createGraphics(w, h);
-            
-            g.colorMode(p.RGB, 255);
-            g.background(p.random(5, 30)); 
-            
-            for(let i = 0; i < 50; i++) {
-                g.noStroke();
-                g.fill(p.random(150, 255), p.random(100, 200)); 
-                g.ellipse(g.random(w), g.random(h), g.random(5, 15), g.random(5, 15));
-            }
-            
-            g.textAlign(p.CENTER, p.CENTER);
-            g.textSize(12);
-            g.textFont('Inter'); 
-            g.fill(255, 200); 
-            const textureText = text.toUpperCase().split('-')[0].trim();
-            g.text(textureText, w / 2, h / 2);
-            
-            return g;
-        }
-
-
-        // --- 3. NODE CLASS (Stores Data) ---
-
-        class Node {
-            constructor(data, x, y, z) {
-                this.id = data.id;
-                this.title = data.title;
-                this.category = data.category;
-                this.tags = data.tags; 
-                this.color = data.color;
-                this.url = data.url; 
-                this.image_path = data.image_path; 
-                this.description = data.description; 
-                
-                this.textureBuffer = null; 
-                
-                this.pos = p5Instance.createVector(x, y); 
-                this.vel = p5Instance.createVector(0, 0); 
-                this.acc = p5Instance.createVector(0, 0); 
-                
-                this.z = z; 
-                this.velZ = p5Instance.random(-0.05, 0.05);
-                this.accZ = 0;
-                this.zOscillationSpeed = p5Instance.random(0.01, 0.03);
-                
-                this.baseSize = p5Instance.random(35, 65);
-                this.size = this.baseSize; 
-                this.sizePhase = p5Instance.random(360); 
-                this.sizeOscillationAmount = p5Instance.random(0.5, 1.5); 
-                this.sizeOscillationSpeed = p5Instance.random(0.5, 1.5);
-                
-                this.isDragging = false;
-            }
-
-            applyForces() {
-                this.acc.mult(0); 
-                const center = p5Instance.createVector(p5Instance.width / 2, p5Instance.height / 2);
-
-                for (let other of nodes) {
-                    if (other !== this) {
-                        let force = p5.Vector.sub(this.pos, other.pos);
-                        let distance = force.mag();
-                        const minDistance = (this.size + other.size) / 2;
-                        distance = p5Instance.constrain(distance, minDistance, 150);
-                        let strength = -SLIGHT_REPULSION_FORCE / (distance * distance); 
-                        force.setMag(strength);
-                        this.acc.add(force);
-                    }
-                }
-
-                let centerForce = p5.Vector.sub(center, this.pos);
-                centerForce.mult(SLIGHT_CENTERING_FORCE);
-                this.acc.add(centerForce);
-
-                const distToCenter = p5Instance.dist(this.pos.x, this.pos.y, center.x, center.y);
-                if (distToCenter > MAX_DISTANCE_FROM_CENTER) {
-                    let boundaryForce = p5.Vector.sub(center, this.pos);
-                    let strength = BOUNDARY_STRENGTH * (distToCenter - MAX_DISTANCE_FROM_CENTER); 
-                    boundaryForce.setMag(strength);
-                    this.acc.add(boundaryForce);
-                }
-            }
-
-            update() {
-                if (!this.isDragging) {
-                    // 2D Movement
-                    this.vel.add(this.acc);
-                    this.vel.mult(0.999999); 
-                    this.pos.add(this.vel);
-
-                    // 3D Movement (Subtle Z-oscillation)
-                    this.accZ = p5Instance.sin(p5Instance.frameCount * this.zOscillationSpeed) * p5Instance.random(0.0001, 0.0005);
-                    this.velZ += this.accZ;
-                    this.velZ *= 0.999; 
-                    this.z += this.velZ;
-                    this.z = p5Instance.constrain(this.z, 10, Z_DEPTH_RANGE - 10); 
-                }
-
-                const oscillation = p5Instance.sin((p5Instance.frameCount * this.sizeOscillationSpeed) + this.sizePhase) * this.sizeOscillationAmount;
-                this.size = this.baseSize + oscillation;
-            }
-
-            display(isHovered) {
-                p5Instance.ellipseMode(p5Instance.CENTER);
-
-                const perspectiveScale = p5Instance.map(this.z, 0, Z_DEPTH_RANGE, Z_FOCAL_LENGTH, 0.5); 
-                const finalSize = this.size * perspectiveScale;
-                const radius = finalSize / 2;
-                const opacity = p5Instance.map(this.z, 0, Z_DEPTH_RANGE, 255, 100); 
-
-                p5Instance.colorMode(p5Instance.RGB, 255); 
-                const baseColor = p5Instance.color(this.color); 
-
-                const pulse = p5Instance.map(p5Instance.sin(p5Instance.frameCount * 0.1), -1, 1, 0, 30);
-                const baseBrightness = p5Instance.red(baseColor);
-                const dynamicBrightness = p5Instance.constrain(baseBrightness + pulse, 50, 255); 
-                const mainColor = p5Instance.color(dynamicBrightness, opacity); 
-
-
-                p5Instance.push();
-                p5Instance.translate(this.pos.x, this.pos.y);
-
-                // --- 1. Draw the "World" image (local texture) inside the planet sphere (Clipped) ---
-                if (this.textureBuffer) { 
-                    
-                    p5Instance.drawingContext.save();
-                    p5Instance.drawingContext.beginPath();
-                    p5Instance.drawingContext.arc(0, 0, radius, 0, p5Instance.TWO_PI);
-                    p5Instance.drawingContext.clip();
-
-                    p5Instance.imageMode(p5Instance.CENTER);
-                    p5Instance.image(this.textureBuffer, 0, 0, finalSize, finalSize); 
-                    
-                    p5Instance.drawingContext.restore();
-                } else {
-                    p5Instance.noStroke();
-                    p5Instance.fill(mainColor);
-                    p5Instance.ellipse(0, 0, finalSize, finalSize); 
-                }
-                
-                // --- 2. Add Planet-like Shading (Radial Gradient) ---
-                const gradient = p5Instance.drawingContext.createRadialGradient(
-                    -radius / 3, -radius / 3, radius * 0.1, 
-                    -radius / 3, -radius / 3, radius * 1.2   
-                );
-
-                const highlightOpacity = p5Instance.map(opacity, 100, 255, 0.1, 0.4);
-                const shadowOpacity = p5Instance.map(opacity, 100, 255, 0.2, 0.4);
-
-                gradient.addColorStop(0, `rgba(255, 255, 255, ${highlightOpacity})`); 
-                gradient.addColorStop(0.7, `rgba(${dynamicBrightness}, ${dynamicBrightness}, ${dynamicBrightness}, ${highlightOpacity / 4})`); 
-                gradient.addColorStop(1, `rgba(0, 0, 0, ${shadowOpacity})`); 
-
-                p5Instance.drawingContext.fillStyle = gradient;
-                p5Instance.drawingContext.beginPath();
-                p5Instance.drawingContext.arc(0, 0, radius, 0, p5Instance.TWO_PI);
-                p5Instance.drawingContext.fill();
-
-                
-                // --- 3. Draw a subtle edge glow/border ---
-                p5Instance.noFill();
-                p5Instance.stroke(255, opacity); 
-                p5Instance.strokeWeight(0.5 / currentScale); 
-                p5Instance.ellipse(0, 0, finalSize, finalSize); 
-
-                p5Instance.pop(); 
-
-                // --- 4. Draw Interaction Highlight ---
-                if (this.isDragging || isHovered) {
-                    p5Instance.noFill();
-                    
-                    let highlightAlpha = this.isDragging ? 255 : 150; 
-                    let highlightWeight = this.isDragging ? 3 / currentScale : 1.5 / currentScale; 
-
-                    p5Instance.stroke(255, highlightAlpha); 
-                    p5Instance.strokeWeight(highlightWeight); 
-                    
-                    p5Instance.ellipse(this.pos.x, this.pos.y, finalSize * 1.15, finalSize * 1.15); 
-                }
-                
-                return finalSize;
-            }
-        }
-
-        // --- 4. THE P5.JS SKETCH ---
-
-        const sketch = (p) => {
-            p5Instance = p; 
-            
-            p.setup = () => {
-                const canvas = p.createCanvas(p.windowWidth, p.windowHeight);
-                canvas.parent('p5-canvas-container'); 
-                p.angleMode(p.DEGREES);
-                p.cursor(p.HAND); 
-                p.colorMode(p.RGB, 255); 
-                p.fill(255);
-                p.stroke(255); 
-
-                viewOffset = p.createVector(p.width / 2, p.height / 2);
-
-                const center = p.createVector(p.width / 2, p.height / 2);
-                const baseRadius = p.min(p.width, p.height) * 0.3;
-                const totalNodes = ARTWORKS.length;
-                
-                nodes = ARTWORKS.map((data, index) => {
-                    let offsetAngle = index * (360 / totalNodes);
-                    let clusterOffset = 0;
-                    if (data.category === "Abstract Expressionism") clusterOffset = 30;
-                    if (data.category === "3D Modeling") clusterOffset = 120;
-                    if (data.category === "Data Visualization") clusterOffset = 240;
-                    if (data.category === "Conceptual Art") clusterOffset = 60;
-
-                    const radius = baseRadius + p.random(-baseRadius * 0.1, baseRadius * 0.1); 
-                    const x = center.x + radius * p.cos(offsetAngle + clusterOffset);
-                    const y = center.y + radius * p.sin(offsetAngle + clusterOffset);
-                    
-                    const z = p.random(10, Z_DEPTH_RANGE - 10); 
-
-                    const newNode = new Node(data, x, y, z);
-                    newNode.textureBuffer = createMonochromeTexture(p, data.title);
-                    
-                    return newNode; 
-                });
-
-                // Initialize background stars
-                for (let i = 0; i < STAR_COUNT; i++) {
-                    const radius = p.random(0, p.max(p.width, p.height) * 1.2); 
-                    const angle = p.random(360);
-                    stars.push({
-                        x: radius * p.cos(angle), 
-                        y: radius * p.sin(angle), 
-                        size: p.random(1, 3),
-                        alpha: p.random(100, 255),
-                        parallaxFactor: p.random(0.05, 0.2), 
-                        velX: p.random(-0.01, 0.01),
-                        velY: p.random(-0.01, 0.01)
-                    });
-                }
-                
-                // Initialize styles for each edge 
-                edgeStyles = EDGES.map(() => {
-                    return {
-                        ...getRandomStyle(p),
-                        transitionFrame: p.frameCount,
-                        duration: p.random(200, 400), 
-                    };
-                });
-            };
-
-            p.draw = () => {
-                
-                p.background(0); 
-                
-                // --- 0. Draw Point Cloud / Starfield (Background) ---
-                p.push();
-                p.translate(p.width / 2, p.height / 2); 
-                p.noStroke();
-
-                const nodesCenter = p.createVector(p.width / 2, p.height / 2);
-                const viewDiffX = viewOffset.x - nodesCenter.x;
-                const viewDiffY = viewOffset.y - nodesCenter.y;
-                
-                for (let star of stars) {
-                    star.x += star.velX; 
-                    star.y += star.velY;
-                    
-                    const x = star.x - viewDiffX * star.parallaxFactor; 
-                    const y = star.y - viewDiffY * star.parallaxFactor;
-
-                    const fade = p.sin(p.millis() * 0.0005 * star.parallaxFactor) * 0.5 + 0.5;
-                    
-                    p.fill(255, star.alpha); 
-                    p.ellipse(x, y, star.size * fade, star.size * fade);
-                    
-                    if (p.frameCount % 180 === 0) { 
-                       star.velX = p.random(-0.02, 0.02);
-                       star.velY = p.random(-0.02, 0.02);
-                    }
-                }
-                p.pop();
-                
-                // --- Main Network Drawing (Nodes and Edges) ---
-                p.push();
-                p.translate(viewOffset.x, viewOffset.y); 
-                p.scale(currentScale); 
-                p.translate(-viewOffset.x, -viewOffset.y); 
-
-                for (let node of nodes) {
-                    node.applyForces(); 
-                    node.update();      
-                }
-                
-                const sortedNodes = nodes.slice().sort((a, b) => b.z - a.z); 
-
-                // --- 3. Draw Edges (Connections) ---
-                for (let i = 0; i < EDGES.length; i++) {
-                    let style = edgeStyles[i];
-                    
-                    if (p.frameCount > style.transitionFrame + style.duration) {
-                        Object.assign(style, getRandomStyle(p)); 
-                        style.transitionFrame = p.frameCount;
-                        style.duration = p.random(200, 400); 
-                    }
-                    
-                    const edge = EDGES[i];
-                    const nodeA = nodes.find(n => n.id === edge.from);
-                    const nodeB = nodes.find(n => n.id === edge.to);
-
-                    const isFiltered = currentFilter === 'all' || 
-                                       nodeA.category === currentFilter || 
-                                       nodeB.category === currentFilter;
-
-                    if (nodeA && nodeB && isFiltered) {
-                        
-                        const edgeColor = p.color(150, 200); 
-                        p.stroke(edgeColor);
-                        p.strokeWeight(style.weight / currentScale); 
-                        
-                        
-                        if (style.type !== 'solid') {
-                            const dashLength = style.type === 'dotted' ? 2 / currentScale : 10 / currentScale;
-                            const gapLength = style.type === 'dotted' ? 5 / currentScale : 5 / currentScale;
-                            const patternArray = [dashLength, gapLength];
-                            const totalDash = dashLength + gapLength;
-
-                            p.drawingContext.setLineDash(patternArray); 
-                            p.drawingContext.lineDashOffset = (p.frameCount * style.speed) % totalDash; 
-                        } else {
-                            p.drawingContext.setLineDash([]); 
-                            p.drawingContext.lineDashOffset = 0;
-                        }
-                        
-                        p.line(nodeA.pos.x, nodeA.pos.y, nodeB.pos.x, nodeB.pos.y);
-                        
-                        p.drawingContext.setLineDash([]); 
-                        p.drawingContext.lineDashOffset = 0;
-                    }
-                }
-                
-                // --- 4. Node Drawing & Hover Detection (Far-to-Near) ---
-                const unscaledX = (p.mouseX - viewOffset.x) / currentScale + viewOffset.x;
-                const unscaledY = (p.mouseY - viewOffset.y) / currentScale + viewOffset.y;
-                let hoveredNode = null;
-
-                for (let i = sortedNodes.length - 1; i >= 0; i--) { 
-                    let node = sortedNodes[i];
-                    if (currentFilter === 'all' || node.category === currentFilter) {
-                        const perspectiveScale = p.map(node.z, 0, Z_DEPTH_RANGE, Z_FOCAL_LENGTH, 0.5);
-                        const finalSize = node.size * perspectiveScale;
-
-                        if (p.dist(node.pos.x, node.pos.y, unscaledX, unscaledY) < finalSize / 2) { 
-                            hoveredNode = node;
-                            break; 
-                        }
-                    }
-                }
-
-                p.fill(255, 200);
-                p.textSize(10 / currentScale); 
-                p.textAlign(p.CENTER, p.BOTTOM);
-                
-                for (let node of sortedNodes) {
-                    const isFiltered = currentFilter === 'all' || node.category === currentFilter;
-
-                    if (isFiltered) {
-                        const isHovered = hoveredNode === node;
-                        const finalSize = node.display(isHovered); 
-                        
-                        p.noStroke(); 
-                        p.fill(255); 
-                        p.text(node.title, node.pos.x, node.pos.y + (finalSize / 2) + (20 / currentScale)); 
-                    }
-                }
-                
-                p.pop(); 
-            };
-            
-            p.windowResized = () => {
-                p.resizeCanvas(p.windowWidth, p.windowHeight);
-                viewOffset = p.createVector(p.width / 2, p.height / 2);
-            }
-
-            // --- 5. INTERACTION LOGIC (Mouse/Single-Touch) ---
-
-            p.mouseWheel = (event) => {
-                const zoomRate = 0.1;
-                let newScale = event.delta < 0 ? currentScale - zoomRate : currentScale + zoomRate;
-                currentScale = p.constrain(newScale, 0.5, 5.0); 
-                return false; // Prevent default scrolling
-            };
-            
-            p.mousePressed = () => {
-                // Ignore all canvas interaction if the modal is open or pinching is active
-                if (isModalOpen || isPinching) return; 
-                
-                initialClickX = p.mouseX;
-                initialClickY = p.mouseY;
-
-                const unscaledX = (p.mouseX - viewOffset.x) / currentScale + viewOffset.x;
-                const unscaledY = (p.mouseY - viewOffset.y) / currentScale + viewOffset.y;
-                
-                const clickableNodes = nodes.slice().sort((a, b) => a.z - b.z); 
-
-                for (let node of clickableNodes) {
-                    if (currentFilter === 'all' || node.category === currentFilter) {
-                        const perspectiveScale = p.map(node.z, 0, Z_DEPTH_RANGE, Z_FOCAL_LENGTH, 0.5);
-                        const finalSize = node.size * perspectiveScale;
-
-                        if (p.dist(node.pos.x, node.pos.y, unscaledX, unscaledY) < finalSize / 2) { 
-                            draggedNode = node;
-                            draggedNode.isDragging = true;
-                            draggedNode.vel.mult(0); 
-                            dragOffsetX = node.pos.x - unscaledX;
-                            dragOffsetY = node.pos.y - unscaledY;
-                            return; 
-                        }
-                    }
-                }
-            }
-
-            p.mouseDragged = () => {
-                // Ignore all canvas interaction if the modal is open or pinching is active
-                if (isModalOpen || isPinching) return; 
-                
-                if (draggedNode) {
-                    const unscaledX = (p.mouseX - viewOffset.x) / currentScale + viewOffset.x;
-                    const unscaledY = (p.mouseY - viewOffset.y) / currentScale + viewOffset.y;
-
-                    draggedNode.pos.x = unscaledX + dragOffsetX;
-                    draggedNode.pos.y = unscaledY + dragOffsetY;
-                } else {
-                    viewOffset.x += p.mouseX - p.pmouseX;
-                    viewOffset.y += p.mouseY - p.pmouseY;
-                }
-                // CRITICAL FIX: Always return false for single-finger input to prevent browser scrolling/zooming
-                return false; 
-            }
-
-            p.mouseReleased = () => {
-                if (draggedNode) {
-                    // Check if this was a quick tap (movement less than CLICK_THRESHOLD) or a drag
-                    const totalMovement = p.dist(initialClickX, initialClickY, p.mouseX, p.mouseY);
-
-                    // If movement is within the generous threshold (80 pixels), treat it as a tap.
-                    if (totalMovement < CLICK_THRESHOLD) {
-                        showProjectModal(draggedNode); 
-                        // CRITICAL CLEANUP: Ensure velocity is zero for a clean tap/stop
-                        draggedNode.vel.mult(0);
-                    } else {
-                        // Apply velocity (for a flick effect when released after a drag)
-                        draggedNode.vel.x = (p.mouseX - p.pmouseX) * 0.1;
-                        draggedNode.vel.y = (p.mouseY - p.pmouseY) * 0.1;
-                    }
-                    
-                    draggedNode.isDragging = false;
-                    draggedNode = null;
-                }
-            }
-            
-            // --- 6. TOUCH GESTURE LOGIC (Multi-Touch for Pinch Zoom) ---
-
-            p.touchMoved = () => {
-                // If modal is open, let touches move (i.e. scroll modal content)
-                if (isModalOpen) return true; 
-
-                if (p.touches.length === 2) {
-                    // Two fingers detected: Pinch-to-Zoom
-                    isPinching = true;
-                    
-                    const currentTouchDistance = p.dist(p.touches[0].x, p.touches[0].y, p.touches[1].x, p.touches[1].y);
-
-                    if (previousTouchDistance > 0) {
-                        const distanceRatio = currentTouchDistance / previousTouchDistance;
-                        let newScale = currentScale * distanceRatio;
-                        currentScale = p.constrain(newScale, 0.5, 5.0);
-                    }
-                    
-                    previousTouchDistance = currentTouchDistance;
-                    return false; // Suppress default browser zoom/scroll while pinching on canvas
-                }
-                
-                // One finger is handled by mouseDragged logic, ensure touchEnded doesn't double fire
-                if (p.touches.length === 1) {
-                    return false;
-                }
-                
-                return true; 
-            }
-            
-            p.touchEnded = () => {
-                // Clear state when fingers are lifted
-                isPinching = false;
-                previousTouchDistance = 0;
-                
-                // Allow default behavior to ensure native elements (like dropdown) work correctly
-                // Note: p.mouseReleased handles the single-tap/drag logic
-                return true; 
-            }
-        };
-
-        // --- 7. MODAL & DROPDOWN LOGIC (HTML/JS) ---
-        
-        const projectModal = document.getElementById('projectModal');
-        const modalDetailsDiv = document.getElementById('modal-project-details');
-        const actionMessage = document.getElementById('actionMessage');
-        const fullProjectBtn = document.getElementById('fullProjectBtn');
-
-
-        function showProjectModal(node) {
-            isModalOpen = true; // Set global flag
-            document.body.classList.add('modal-open'); // Lock background scroll
-            currentProjectUrl = node.url; 
-            actionMessage.classList.add('hidden'); 
-            
-            // Populate the modal content
-            modalDetailsDiv.innerHTML = `
-                <header>
-                    <h3 class="text-3xl font-extrabold text-white mb-1" id="modal-title">${node.title}</h3>
-                    <p class="text-sm font-medium uppercase tracking-wider text-indigo-400">${node.category}</p>
-                </header>
-                
-                <!-- Image Preview -->
-                <div class="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden shadow-xl mt-4">
-                    <img src="${node.image_path}" alt="${node.title}" class="modal-card-image w-full object-cover" 
-                         onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Project+Visual+Placeholder';">
-                    <div class="p-4">
-                         <p class="text-gray-400 text-sm italic">${node.description}</p>
-                    </div>
-                </div>
-
-                <!-- Tags and Color -->
-                <div class="flex flex-wrap gap-2 pt-2">
-                    ${node.tags.map(tag => `<span class="bg-gray-800 text-gray-300 text-xs font-semibold px-3 py-1 rounded-full border border-gray-700">${tag}</span>`).join('')}
-                    <div class="flex items-center space-x-2 text-sm text-gray-300">
-                        <span class="w-3 h-3 rounded-full border border-gray-500" style="background-color: ${node.color};"></span>
-                        <span class="font-mono text-xs">${node.color}</span>
-                    </div>
-                </div>
-            `;
-            
-            // Show the modal
-            projectModal.classList.remove('hidden');
-        }
-
-        function closeProjectModal() {
-            isModalOpen = false; // Clear global flag
-            projectModal.classList.add('hidden');
-            document.body.classList.remove('modal-open'); // Restore background scrolling
-        }
-        
-        function handleFullProjectClick() {
-            // Simulate navigating to the full project page
-            actionMessage.textContent = `Navigating to ${currentProjectUrl}... (Closing in 2s)`;
-            actionMessage.classList.remove('hidden');
-            
-            // In a real app, this would be: window.open(currentProjectUrl, '_blank');
-            
-            setTimeout(() => {
-                closeProjectModal();
-            }, 2000); 
-        }
-
-        function setFilter(filterKey) {
-            currentFilter = filterKey;
-        }
-
-        // Initialization on window load
-        window.onload = () => {
-             // 1. Initialize p5 sketch
-             new p5(sketch);
-             
-             // 2. Setup Dropdown UI
-             const categoryFilter = document.getElementById('category-filter');
-
-             MENU_ITEMS.forEach(item => {
-                 const option = document.createElement('option');
-                 option.value = item.filterKey;
-                 option.textContent = item.category;
-                 categoryFilter.appendChild(option);
-             });
-
-             // Set initial filter and attach listener
-             setFilter('all');
-             // The native change event on select is reliable on mobile
-             categoryFilter.addEventListener('change', (e) => setFilter(e.target.value));
-             
-             // Optional: Close modal when Escape key is pressed
-             document.addEventListener('keydown', (e) => {
-                 if (e.key === 'Escape' && isModalOpen) {
-                     closeProjectModal();
-                 }
-             });
-        };
-
-    </script>
+<body>
+<script>
+// === Scene Setup ===
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 0, 5);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// === Orbit Controls ===
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+// === Lighting ===
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5, 5, 5);
+scene.add(light);
+scene.add(new THREE.AmbientLight(0x404040, 0.6));
+
+// === Create Planets (spheres) ===
+const planets = [];
+const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+
+for (let i = 0; i < 3; i++) {
+  const material = new THREE.MeshStandardMaterial({ color: new THREE.Color(`hsl(${i * 120}, 80%, 50%)`) });
+  const sphere = new THREE.Mesh(geometry, material);
+  sphere.position.x = i * 2 - 2; // spread planets out
+  scene.add(sphere);
+  planets.push(sphere);
+}
+
+// === Raycaster for interaction ===
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+
+function checkIntersection(x, y) {
+  // Convert screen coords to NDC (-1 to +1)
+  pointer.x = (x / window.innerWidth) * 2 - 1;
+  pointer.y = -(y / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const intersects = raycaster.intersectObjects(planets);
+  if (intersects.length > 0) {
+    let planet = intersects[0].object;
+    planet.material.color.set(Math.random() * 0xffffff); // change color on tap
+  }
+}
+
+// === Mouse Click ===
+window.addEventListener('click', (event) => {
+  checkIntersection(event.clientX, event.clientY);
+});
+
+// === Touch Tap (Mobile) ===
+window.addEventListener('touchend', (event) => {
+  if (event.changedTouches.length === 1) {
+    const touch = event.changedTouches[0];
+    checkIntersection(touch.clientX, touch.clientY);
+  }
+});
+
+// === Resize ===
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// === Animation Loop ===
+function animate() {
+  requestAnimationFrame(animate);
+  planets.forEach(p => p.rotation.y += 0.01);
+  renderer.render(scene, camera);
+}
+animate();
+</script>
 </body>
 </html>
