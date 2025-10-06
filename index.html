@@ -34,6 +34,9 @@
             left: 0;
             display: block;
             z-index: 10; 
+            /* Set CSS dimensions back to screen size for high-DPI scaling */
+            width: 100vw; 
+            height: 100vh; 
         }
         
         #nav-container, .instructions-overlay {
@@ -76,7 +79,7 @@
             </select>
         </div>
 
-        <!-- Instructions Overlay (Desktop/Tablet) -->
+        <!-- Instructions Overlay (Top Right) -->
         <div class="instructions-overlay fixed top-4 right-4 p-3 bg-white/90 rounded-lg text-sm text-gray-700 border border-black shadow-xl hidden sm:block z-[100]">
             <p class="font-semibold text-black">Universe Navigation (Desktop/Scroll):</p>
             <ul class="list-disc list-inside mt-1 space-y-0.5">
@@ -87,7 +90,7 @@
         </div>
         
         <!-- Instructions Overlay (Mobile/Touch Guide) -->
-        <div class="instructions-overlay fixed top-4 right-4 p-2 bg-white/90 rounded-lg text-xs text-gray-700 border border-black shadow-xl block sm:hidden z-[100]">
+        <div class="instructions-overlay fixed bottom-4 right-4 p-2 bg-white/90 rounded-lg text-xs text-gray-700 border border-black shadow-xl block z-[100]">
             <p class="font-semibold text-black mb-1">Touch Guide:</p>
             <p>1 Finger: **Pan View/Drag Node/Tap**</p>
             <p>2 Fingers: **Pinch to Zoom**</p>
@@ -139,7 +142,6 @@
     <script>
         // === CORE DATA AND CONFIGURATION ===
         
-        const TEMP_MOCK = { random: (min, max) => Math.random() * (max - min) + min }; 
         const ARTWORKS = [
             { id: 0, title: "Conceptual Art - Light Form", category: "Conceptual Art", tags: ["#3D", "#SciFi", "#Light"], color: '#A0A0A0', url: "https://www.google.com/search?q=Conceptual+Art", description: "Explores the interplay between perceived reality and light's formless nature. A decentralized ledger of light-based art experiments.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
             { id: 1, title: "Digital Portrait Study", category: "Digital Sculpture", tags: ["#Particles", "#Monochrome", "#Face"], color: '#B0B0B0', url: "https://www.google.com/search?q=Digital+Sculpture", description: "A dynamic study of the human form rendered entirely through particle systems, constantly shifting and reforming. This node holds the original source code.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
@@ -168,28 +170,29 @@
 
         // --- GLOBAL CONFIGS ---
         const SLIGHT_REPULSION_FORCE = 0.005; 
-        const STRONG_REPULSION_FORCE = 0.5; // NEW: Stronger force to prevent dynamic overlap
+        const STRONG_REPULSION_FORCE = 0.5; 
         const SLIGHT_CENTERING_FORCE = 0.00000005; 
         const BOUNDARY_STRENGTH = 0.0005; 
         const MAX_DISTANCE_FROM_CENTER = 400; 
-        const CLICK_THRESHOLD = 80; // Forgiving mobile tap distance check
+        // INCREASED FORGIVENESS: Taps that move less than this threshold are considered clicks.
+        const CLICK_THRESHOLD = 12; 
         const STAR_COUNT = 1200; 
         const Z_DEPTH_RANGE = 1000; 
         const Z_FOCAL_LENGTH = 1.5; 
         const PI = Math.PI;
-        // CRITICAL FIX CONFIG: Minimum pixel distance to ensure nodes don't overlap on initial placement
         const MIN_NODE_SEPARATION = 120; 
-        // NEW CONFIG: How much larger the tap target is on mobile (1.8x the visual size)
-        const TOUCH_PADDING_FACTOR = 1.8; 
+        // INCREASED FORGIVENESS: Larger tap target for mobile devices (2.0x the visual size)
+        const TOUCH_PADDING_FACTOR = 2.0; 
 
         // --- GLOBAL STATE ---
         let canvas, ctx, width, height;
+        let dpr = window.devicePixelRatio || 1; // CRITICAL: Get device pixel ratio
         let nodes = [];
         let stars = [];
         let edgeStyles = []; 
         
         let currentScale = 1.0; 
-        let viewOffset = {x: 0, y: 0}; // Tracks the pivot point for zoom/pan (starts at screen center)
+        let viewOffset = {x: 0, y: 0}; 
         let currentFilter = 'all'; 
         let currentProjectUrl = ''; 
         let isModalOpen = false;
@@ -204,7 +207,7 @@
         let isViewPanning = false; 
         let previousTouchDistance = 0;
 
-        // --- VECTOR UTILITY CLASS (Replaces P5.js vectors) ---
+        // --- VECTOR UTILITY CLASS ---
         class Vector {
             constructor(x = 0, y = 0) {
                 this.x = x;
@@ -241,10 +244,10 @@
             }
         }
 
-        // --- NODE CLASS (Stores Data and Physics) ---
+        // --- NODE CLASS ---
         class Node {
             constructor(data, x, y, z) {
-                Object.assign(this, data); // Copy all data fields
+                Object.assign(this, data); 
                 
                 this.pos = new Vector(x, y); 
                 this.vel = new Vector(0, 0); 
@@ -275,7 +278,6 @@
                         const minDistance = (this.size + other.size) / 2;
                         distance = Math.min(Math.max(distance, minDistance), 150);
                         
-                        // NEW LOGIC: Use a much stronger repulsion when nodes are close
                         let strength;
                         if (distance < minDistance * 1.5) { 
                             // Stronger inverse distance force when very close to actively push apart
@@ -376,6 +378,7 @@
             ctx.fill();
 
             // 3. Draw subtle border
+            // Note: Line width needs to be scaled by 1/currentScale to remain constant size on screen
             ctx.strokeStyle = `rgba(255, 255, 255, ${opacity / 255})`; 
             ctx.lineWidth = 0.5 / currentScale; 
             ctx.stroke();
@@ -450,6 +453,7 @@
                 star.x += star.velX; 
                 star.y += star.velY;
                 
+                // Adjust position based on parallax and view offset
                 const x = star.x - viewDiffX * star.parallaxFactor; 
                 const y = star.y - viewDiffY * star.parallaxFactor;
 
@@ -475,8 +479,10 @@
             frameCount++;
             
             // 1. Clear Canvas and Draw Background
+            // We use the full width and height which are scaled by DPR internally
             ctx.fillStyle = 'black';
-            ctx.fillRect(0, 0, width, height);
+            // The canvas width/height are the *logical* pixel sizes for drawing
+            ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr); 
             
             // 2. Draw Stars (always drawn relative to the center)
             drawStars();
@@ -540,23 +546,26 @@
          * @returns {object|null} { node, unscaledX, unscaledY } of the topmost collided node, or null.
          */
         function getNodeAtScreenCoords(screenX, screenY) {
-            // Inverse Transform: This equation correctly reverses the T/S/T transformation in gameLoop.
-            const unscaledX = (screenX - viewOffset.x) / currentScale + viewOffset.x;
-            const unscaledY = (screenY - viewOffset.y) / currentScale + viewOffset.y;
+            // Screen coordinates are already adjusted by touch listeners, but we need to normalize them
+            // to the logical pixel space (since mouseX/Y track actual screen pixels, which is scaled by DPR)
+            const logicalX = screenX / dpr; 
+            const logicalY = screenY / dpr; 
+
+            // Inverse Transform: This reverses the T/S/T transformation to get the point in world space.
+            const unscaledX = (logicalX - viewOffset.x) / currentScale + viewOffset.x;
+            const unscaledY = (logicalY - viewOffset.y) / currentScale + viewOffset.y;
             
             // Apply touch padding only on small screens for better UX
             const touchPadding = window.innerWidth <= 640 ? TOUCH_PADDING_FACTOR : 1.0; 
 
             // Check for node collision (near-to-far)
-            // Sorting near-to-far ensures we only interact with the visually top-most node
             const clickableNodes = nodes.slice().sort((a, b) => b.z - a.z); 
 
             for (let node of clickableNodes) {
                 if (currentFilter === 'all' || node.category === currentFilter) {
                     const finalSize = node.getFinalSize();
                     
-                    // FIX: Convert screen size (finalSize) to world size (worldRadius)
-                    // We need to compare the distance in WORLD coordinates against the node's radius in WORLD coordinates.
+                    // Convert screen size (finalSize) to world size (worldRadius)
                     const worldRadius = (finalSize / 2) / currentScale; 
 
                     // Calculate distance in WORLD coordinates
@@ -575,6 +584,7 @@
         // --- INITIALIZATION ---
 
         function initStars() {
+            // Note: Star positions are initialized in logical pixel space (width/height)
             for (let i = 0; i < STAR_COUNT; i++) {
                 const radius = Math.random() * Math.max(width, height) * 1.2; 
                 const angle = Math.random() * 2 * PI;
@@ -585,13 +595,13 @@
                     alpha: Math.random() * 155 + 100,
                     parallaxFactor: Math.random() * 0.15 + 0.05, 
                     velX: Math.random() * 0.02 - 0.01,
-                    velY: Math.random() * 0.02 - 0.01
+                    velY: Math.random() * 0.04 - 0.02
                 });
             }
         }
 
         /**
-         * CRITICAL FIX: Initializes nodes with a minimum separation distance to prevent overlap.
+         * Initializes nodes with a minimum separation distance to prevent overlap.
          */
         function initNodes() {
             const center = {x: width / 2, y: height / 2};
@@ -604,9 +614,7 @@
                 let attempts = 0;
                 let placed = false;
                 
-                // Attempt to place the node in a non-overlapping space
                 while (!placed && attempts < 100) {
-                    // Generate random position within the defined radius
                     const r = Math.random() * placementRadius;
                     const theta = Math.random() * 2 * PI;
                     
@@ -622,7 +630,6 @@
                             Math.pow(newNode.pos.x - existingNode.pos.x, 2) + 
                             Math.pow(newNode.pos.y - existingNode.pos.y, 2)
                         );
-                        // Check if the distance is less than the required minimum separation
                         if (distance < MIN_NODE_SEPARATION) { 
                             overlaps = true;
                             break;
@@ -636,7 +643,6 @@
                     attempts++;
                 }
 
-                // Fallback: If 100 attempts failed (rare), just place it near the center.
                 if (!placed) {
                     const x = center.x + Math.random() * 10 - 5;
                     const y = center.y + Math.random() * 10 - 5;
@@ -669,7 +675,6 @@
             
             resizeCanvas();
             
-            // viewOffset starts at center, acting as the pivot point
             viewOffset.x = width / 2;
             viewOffset.y = height / 2;
             
@@ -691,19 +696,30 @@
             requestAnimationFrame(gameLoop);
         }
 
+        /**
+         * CRITICAL FIX: Handles high-DPI (Retina) scaling for sharp rendering.
+         */
         function resizeCanvas() {
+            // Logical width/height (what the CSS sees)
             width = window.innerWidth;
             height = window.innerHeight;
-            canvas.width = width;
-            canvas.height = height;
+            
+            // Set canvas drawing buffer size (multiplied by DPR)
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            
+            // Scale the context so drawing commands work in logical pixel space
+            ctx.scale(dpr, dpr);
+
             // Recenter the pivot point when resizing
             viewOffset.x = width / 2;
             viewOffset.y = height / 2;
         }
 
-        // --- INTERACTION LOGIC (Translated from P5.js to Native Events) ---
+        // --- INTERACTION LOGIC ---
 
-        let mouseX = 0;
+        // mouseX/Y now track the *actual* screen coordinates, which need to be divided by DPR for game logic
+        let mouseX = 0; 
         let mouseY = 0;
 
         function handleMouseWheel(event) {
@@ -718,6 +734,7 @@
         function handleMouseDown(event) {
             if (isModalOpen || event.button !== 0) return; // Only left-click
             
+            // Store screen coordinates for click distance check
             initialClickX = event.clientX;
             initialClickY = event.clientY;
             
@@ -748,21 +765,25 @@
             if (isModalOpen) return;
 
             if (draggedNode) {
-                // Get the world position of the new mouse location
-                const newUnscaledX = (mouseX - viewOffset.x) / currentScale + viewOffset.x;
-                const newUnscaledY = (mouseY - viewOffset.y) / currentScale + viewOffset.y;
+                // Get the world position of the new mouse location (using logical coordinates)
+                const logicalX = mouseX / dpr;
+                const logicalY = mouseY / dpr;
+
+                const newUnscaledX = (logicalX - viewOffset.x) / currentScale + viewOffset.x;
+                const newUnscaledY = (logicalY - viewOffset.y) / currentScale + viewOffset.y;
 
                 // Move the node to the new world position + the offset
                 draggedNode.pos.x = newUnscaledX + dragOffsetX;
                 draggedNode.pos.y = newUnscaledY + dragOffsetY;
             } else if (event.buttons === 1) { // If left button is down for panning (Desktop)
-                viewOffset.x += mouseX - prevMouseX;
-                viewOffset.y += mouseY - prevMouseY;
+                viewOffset.x += (mouseX - prevMouseX) / dpr;
+                viewOffset.y += (mouseY - prevMouseY) / dpr;
             }
         }
 
         function handleMouseUp(event) {
             if (draggedNode) {
+                // Calculate movement in screen pixels
                 const totalMovement = Math.sqrt(
                     Math.pow(initialClickX - event.clientX, 2) + 
                     Math.pow(initialClickY - event.clientY, 2)
@@ -786,9 +807,9 @@
         
         function handleTouchStart(event) {
             if (isModalOpen) return;
-            event.preventDefault(); // CRITICAL: Stop browser scrolling/zooming right away
+            event.preventDefault(); 
 
-            // Update mouseX/Y with the first touch point
+            // Update mouseX/Y with the first touch point (screen coordinates)
             const touch = event.touches[0];
             initialClickX = touch.clientX;
             initialClickY = touch.clientY;
@@ -806,7 +827,7 @@
                     draggedNode.vel.mult(0); 
                     dragOffsetX = node.pos.x - unscaledX;
                     dragOffsetY = node.pos.y - unscaledY;
-                    isViewPanning = false; // Node found, prioritize dragging
+                    isViewPanning = false; 
                     return; 
                 }
                 
@@ -830,11 +851,9 @@
             if (isModalOpen) return;
             event.preventDefault(); 
 
-            // Store previous mouse/touch position
             const prevMouseX = mouseX;
             const prevMouseY = mouseY;
             
-            // Update current mouse/touch position
             const touch = event.touches[0] || event.changedTouches[0];
             mouseX = touch ? touch.clientX : mouseX;
             mouseY = touch ? touch.clientY : mouseY;
@@ -856,17 +875,20 @@
             } else if (event.touches.length === 1 && !isPinching) {
                 // Single Touch Action (Node Drag or View Pan)
                 if (draggedNode) {
-                    // Get the world position of the new touch location
-                    const newUnscaledX = (mouseX - viewOffset.x) / currentScale + viewOffset.x;
-                    const newUnscaledY = (mouseY - viewOffset.y) / currentScale + viewOffset.y;
+                    // Get the world position of the new touch location (using logical coordinates)
+                    const logicalX = mouseX / dpr;
+                    const logicalY = mouseY / dpr;
+                    
+                    const newUnscaledX = (logicalX - viewOffset.x) / currentScale + viewOffset.x;
+                    const newUnscaledY = (logicalY - viewOffset.y) / currentScale + viewOffset.y;
     
                     // Move the node to the new world position + the offset
                     draggedNode.pos.x = newUnscaledX + dragOffsetX;
                     draggedNode.pos.y = newUnscaledY + dragOffsetY;
                 } else if (isViewPanning) { 
-                    // Panning the view
-                    viewOffset.x += mouseX - prevMouseX;
-                    viewOffset.y += mouseY - prevMouseY;
+                    // Panning the view (must convert movement delta to logical pixels)
+                    viewOffset.x += (mouseX - prevMouseX) / dpr;
+                    viewOffset.y += (mouseY - prevMouseY) / dpr;
                 }
             }
         }
@@ -877,6 +899,7 @@
             
             if (draggedNode) {
                  // Check if it was a quick tap (tap) or a long drag (flick/move)
+                 // Use the last recorded mouseX/Y which should be the position of the touch release
                  const totalMovement = Math.sqrt(
                     Math.pow(initialClickX - mouseX, 2) + 
                     Math.pow(initialClickY - mouseY, 2)
@@ -945,7 +968,7 @@
             document.body.classList.remove('modal-open'); 
         }
         
-        window.closeProjectModal = closeProjectModal; // Expose to global scope for HTML inline click
+        window.closeProjectModal = closeProjectModal; 
 
         function handleFullProjectClick() {
             actionMessage.textContent = `Navigating to ${currentProjectUrl}... (Closing in 2s)`;
@@ -962,10 +985,8 @@
 
         // --- Window Load and Setup ---
         window.onload = () => {
-             // 1. Initialize Canvas and Game Loop
              setupCanvas();
              
-             // 2. Setup Dropdown UI
              const categoryFilter = document.getElementById('category-filter');
 
              MENU_ITEMS.forEach(item => {
