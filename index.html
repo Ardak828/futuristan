@@ -1,783 +1,155 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>3D Interactive Art Network</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;600;800&display=swap');
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>futuristan</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: black;
+      color: white;
+    }
 
-        :root {
-            --bg: #000;
-            --panel: #111827;
-            --muted: #9ca3af;
-            --accent: #4f46e5;
-        }
+    /* Main Menu */
+    .menu {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 20px;
+      z-index: 10;
+    }
 
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            background: var(--bg);
-            font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-            color: #fff;
-            overflow: hidden;
-        }
+    .menu a {
+      color: white;
+      text-decoration: none;
+      font-size: 18px;
+      cursor: pointer;
+    }
 
-        canvas { display: block; width: 100%; height: 100%; }
+    /* Dropdown Menu for Projects */
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
 
-        /* Instructions */
-        #instructions {
-            position: fixed;
-            left: 50%;
-            top: 1rem;
-            transform: translateX(-50%);
-            z-index: 40;
-            background: rgba(255,255,255,0.06);
-            color: #d1d5db;
-            padding: 0.6rem 0.9rem;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            transition: opacity 0.4s;
-        }
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: rgba(0,0,0,0.9);
+      min-width: 160px;
+      box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+      z-index: 20;
+    }
 
-        /* Nav/filter */
-        #nav-container {
-            position: fixed;
-            left: 1rem;
-            top: 1rem;
-            z-index: 40;
-        }
-        select#category-filter {
-            padding: 0.6rem 0.75rem;
-            border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.08);
-            background: rgba(255,255,255,0.04);
-            color: #fff;
-            font-weight: 700;
-            min-width: 12rem;
-        }
+    .dropdown-content a {
+      color: white;
+      padding: 10px 14px;
+      text-decoration: none;
+      display: block;
+    }
 
-        /* Node labels */
-        .node-label {
-            position: absolute;
-            pointer-events: none;
-            transform: translate(-50%, -100%);
-            padding: 4px 8px;
-            border-radius: 6px;
-            background: rgba(0,0,0,0.6);
-            border: 1px solid rgba(255,255,255,0.06);
-            font-size: 0.82rem;
-            white-space: nowrap;
-            z-index: 30;
-            transition: opacity 0.12s;
-        }
+    .dropdown-content a:hover {
+      background-color: rgba(255,255,255,0.1);
+    }
 
-        /* Modal (single modal, dynamic content) */
-        #projectModal {
-            position: fixed;
-            inset: 0;
-            z-index: 60;
-            display: none; /* toggled by JS */
-            align-items: center;
-            justify-content: center;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        #projectModal .backdrop {
-            position: absolute;
-            inset: 0;
-            background: rgba(17,24,39,0.82);
-        }
-
-        #projectModal .panel {
-            position: relative;
-            width: 92%;
-            max-width: 560px;
-            border-radius: 14px;
-            background: var(--panel);
-            border: 1px solid rgba(255,255,255,0.04);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-            padding: 1.2rem;
-            margin: 2rem;
-            z-index: 62;
-            color: #e6eef8;
-        }
-
-        #projectModal .close-btn {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: transparent;
-            border: none;
-            color: var(--muted);
-            padding: 6px;
-            border-radius: 999px;
-            cursor: pointer;
-        }
-        #projectModal .close-btn:hover { color: #fff; background: rgba(255,255,255,0.03); }
-
-        #modal-project-details h3 {
-            margin: 0 0 6px 0;
-            font-size: 1.4rem;
-            font-weight: 800;
-            color: #fff;
-        }
-        #modal-project-details p.category {
-            margin: 0 0 12px 0;
-            color: #9aa0ff;
-            font-size: 0.85rem;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            font-weight: 700;
-        }
-
-        .image-card {
-            border-radius: 10px;
-            overflow: hidden;
-            background: #0f1724;
-            border: 1px solid rgba(255,255,255,0.03);
-        }
-        .image-card img {
-            width: 100%;
-            height: 220px;
-            object-fit: cover;
-            display: block;
-        }
-        .image-card .description {
-            padding: 0.9rem;
-            color: var(--muted);
-            font-size: 0.95rem;
-            font-style: italic;
-        }
-
-        .tag-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 10px;
-        }
-        .tag {
-            background: rgba(255,255,255,0.03);
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-weight: 700;
-            font-size: 0.82rem;
-            color: #d1d5db;
-            border: 1px solid rgba(255,255,255,0.02);
-        }
-
-        .color-indicator {
-            display:flex;
-            gap:10px;
-            align-items:center;
-            margin-top: 10px;
-            color: var(--muted);
-            font-family: monospace;
-            font-size: 0.82rem;
-        }
-        .color-swatch {
-            width: 14px;
-            height: 14px;
-            border-radius: 999px;
-            border: 1px solid rgba(255,255,255,0.06);
-        }
-
-        .modal-footer {
-            margin-top: 1rem;
-        }
-        #fullProjectBtn {
-            width: 100%;
-            padding: 0.85rem;
-            border-radius: 10px;
-            border: none;
-            cursor: pointer;
-            font-weight: 800;
-            font-size: 1rem;
-            background: var(--accent);
-            color: white;
-        }
-        #actionMessage {
-            margin-top: 0.6rem;
-            color: var(--muted);
-            font-size: 0.9rem;
-            display: none;
-        }
-
-        /* utility */
-        .hidden { display: none; }
-        @media (min-width: 900px) {
-            .image-card img { height: 280px; }
-        }
-    </style>
-
-    <!-- THREE.js r128 + OrbitControls (kept same version you used) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    .dropdown:hover .dropdown-content {
+      display: block;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
 </head>
 <body>
-    <div id="instructions">
-        <div style="font-weight:800; color:#dfe3ff">3D Network Explorer</div>
-        <div style="font-size:0.85rem; margin-top:4px; color:#d1d5db">
-            Drag to orbit — Click / Tap a sphere to open details
-        </div>
+  <div class="menu">
+    <a href="#">Home</a>
+    <a href="#">About</a>
+    <div class="dropdown">
+      <a href="#">Projects ▼</a>
+      <div class="dropdown-content" id="projectsMenu"></div>
     </div>
+  </div>
 
-    <div id="nav-container">
-        <select id="category-filter" aria-label="Filter projects"></select>
-    </div>
+  <script>
+    let stars = [];
+    let planets = [];
+    let planetNames = ["Asteria", "Nebula", "Orion", "Lyra", "Eclipse"];
 
-    <div id="label-container" style="pointer-events:none;"></div>
+    function setup() {
+      createCanvas(windowWidth, windowHeight, WEBGL);
 
-    <!-- Modal -->
-    <div id="projectModal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-        <div class="backdrop" id="modalBackdrop"></div>
-        <div class="panel" role="document">
-            <button class="close-btn" id="modalCloseBtn" aria-label="Close modal">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-
-            <div id="modal-project-details" aria-live="polite">
-                <!-- injected -->
-            </div>
-
-            <div class="modal-footer">
-                <button id="fullProjectBtn">View Full Project</button>
-                <p id="actionMessage">Opening project...</p>
-            </div>
-        </div>
-    </div>
-
-    <script>
-    /* ========== CORE DATA (unchanged semantic structure) ========== */
-    const ARTWORKS = [
-        { id: 0, title: "Conceptual Art - Light Form", category: "Conceptual Art", tags: ["#3D", "#SciFi", "#Light"], color: '#A0A0A0', url: "https://www.google.com/search?q=Conceptual+Art", description: "Explores the interplay between perceived reality and light's formless nature. A decentralized ledger of light-based art experiments.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
-        { id: 1, title: "Digital Portrait Study", category: "Digital Sculpture", tags: ["#Particles", "#Monochrome", "#Face"], color: '#B0B0B0', url: "https://www.google.com/search?q=Digital+Sculpture", description: "A dynamic study of the human form rendered entirely through particle systems, constantly shifting and reforming. This node holds the original source code.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
-        { id: 2, title: "Wireframe Structure", category: "Abstract Expressionism", tags: ["#Liquid", "#Vibrant", "#Topology"], color: '#C0C0C0', url: "https://www.google.com/search?q=Abstract+Expressionism", description: "A chaotic yet beautiful expression of connectivity, visualizing network traffic as liquid wireframes. Part of the 'Flow' collection.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
-        { id: 3, title: "Minimalist Grid", category: "Data Visualization", tags: ["#LiDAR", "#Monochrome", "#Clean"], color: '#D0D0D0', url: "https://www.google.com/search?q=Data+Visualization", description: "A clean, responsive visualization of sensor data. The grid represents data points recorded over a 24-hour period.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
-        { id: 4, title: "Geometric Abstraction", category: "Figurative Particles", tags: ["#Music", "#Aura", "#Synth"], color: '#E0E0E0', url: "https://www.google.com/search?q=Geometric+Abstraction", description: "Artwork generated by feeding musical frequency data into a geometric algorithm. It changes form based on the last recorded sound input.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
-        { id: 5, title: "Blue and Gold Swirl", category: "Digital Flora", tags: ["#Neon", "#Organic", "#Growth"], color: '#F0F0F0', url: "https://www.google.com/search?q=Digital+Flora", description: "A simulation of digital organic growth, where the swirl patterns are dictated by L-systems. Represents a seed for future bio-digital creations.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
-        { id: 6, title: "Sphere in Darkness", category: "3D Modeling", tags: ["#Sculpture", "#Hollow", "#Void"], color: '#F8F8F8', url: "https://www.google.com/search?q=3D+Modeling", description: "A study in negative space and volumetric light. The sphere is a hollow vessel, symbolizing untapped potential within the network.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
-        { id: 7, title: "Digital Ocean", category: "Abstract 3D", tags: ["#Planets", "#Rings", "#Water"], color: '#FEFEFE', url: "https://www.google.com/search?q=Abstract+3D", description: "Rendering of an abstract planetary body composed entirely of undulating digital waves. It serves as an archive for water-themed generative art.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
-        { id: 8, title: "Red Web Structure", category: "Data Visualization", tags: ["#Code", "#Network", "#Chaos"], color: '#FFFFFF', url: "https://www.google.com/search?q=Network+Data", description: "A visualization of chaotic network failure points, highlighting areas of high stress and latency in a vibrant red hue.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
-        { id: 9, title: "Complex Pattern", category: "Digital Painting", tags: ["#Retro", "#Vapor", "#Glitch"], color: '#EBEBEB', url: "https://www.google.com/search?q=Digital+Painting", description: "An intricate pattern that mimics old-school vector art with digital decay effects. The core pattern evolves daily.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
-    ];
-
-    const EDGES = [
-        { from: 0, to: 1 }, { from: 1, to: 5 }, { from: 2, to: 6 },
-        { from: 3, to: 7 }, { from: 0, to: 4 }, { from: 6, to: 1 },
-        { from: 8, to: 9 }, { from: 9, to: 3 }, { from: 4, to: 8 },
-        { from: 7, to: 2 }
-    ];
-
-    /* ========== THREE.JS STATE ========== */
-    let scene, camera, renderer, controls;
-    let raycaster, mouse;
-    let nodeGroup, lineGroup;
-    let nodes = [], edges = [];
-    const NODE_RADIUS = 3;
-    const GALAXY_RADIUS = 150;
-    const CLICK_THRESHOLD = 25; // pixels
-    let draggedNode = null;
-    let plane = new THREE.Plane();
-    let offset = new THREE.Vector3();
-    let intersection = new THREE.Vector3();
-    let clickStartScreen = {x: 0, y: 0};
-    let isModalOpen = false;
-    let currentProjectUrl = '';
-    const tempV = new THREE.Vector3();
-
-    // Modal elements
-    const projectModal = document.getElementById('projectModal');
-    const modalBackdrop = document.getElementById('modalBackdrop') || document.getElementById('modalBackdrop');
-    const modalCloseBtn = document.getElementById('modalCloseBtn');
-    const modalDetailsDiv = document.getElementById('modal-project-details');
-    const fullProjectBtn = document.getElementById('fullProjectBtn');
-    const actionMessage = document.getElementById('actionMessage');
-
-    /* ---------- Helpers for pointer coordinates (mouse & touch) ---------- */
-    function getPointerCoordinates(event, isEnd = false) {
-        // returns { clientX, clientY } and sets mouse.x / mouse.y for raycasting
-        const rect = renderer.domElement.getBoundingClientRect();
-        let clientX = 0, clientY = 0;
-        // for touchend use changedTouches
-        const pointer = (isEnd ? (event.changedTouches && event.changedTouches[0]) : (event.touches && event.touches[0])) || event;
-        if (pointer) {
-            clientX = pointer.clientX;
-            clientY = pointer.clientY;
-        } else {
-            clientX = event.clientX || 0;
-            clientY = event.clientY || 0;
-        }
-        mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-        return { clientX, clientY };
-    }
-
-    /* ---------- Initialization ---------- */
-    function init() {
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
-        scene.fog = new THREE.FogExp2(0x000000, 0.0006);
-
-        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 2000);
-        camera.position.set(0, 0, 200);
-
-        renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.domElement.style.touchAction = 'none'; // important for mobile touch handling
-        document.body.appendChild(renderer.domElement);
-
-        controls = new THREE.OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.08;
-        controls.minDistance = 50;
-        controls.maxDistance = 600;
-
-        // lights
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-        const dir = new THREE.DirectionalLight(0xffffff, 1.6);
-        dir.position.set(10, 10, 10);
-        scene.add(dir);
-
-        raycaster = new THREE.Raycaster();
-        mouse = new THREE.Vector2();
-
-        nodeGroup = new THREE.Group();
-        lineGroup = new THREE.Group();
-        scene.add(nodeGroup);
-        scene.add(lineGroup);
-
-        createBackgroundStars(900);
-        createGalaxyNetwork();
-        createLabels();
-        populateFilterMenu();
-
-        // listeners
-        window.addEventListener('resize', onWindowResize, false);
-        const canvas = renderer.domElement;
-
-        // Use pointer events where supported for unified handling; fallback to touch/mouse
-        if (window.PointerEvent) {
-            canvas.addEventListener('pointerdown', onPointerDown, { passive: false });
-            canvas.addEventListener('pointermove', onPointerMove, { passive: false });
-            canvas.addEventListener('pointerup', onPointerUp, { passive: false });
-            canvas.addEventListener('pointercancel', onPointerUp, { passive: false });
-        } else {
-            canvas.addEventListener('mousedown', onPointerDown, { passive: false });
-            canvas.addEventListener('mousemove', onPointerMove, { passive: false });
-            canvas.addEventListener('mouseup', onPointerUp, { passive: false });
-
-            canvas.addEventListener('touchstart', onPointerDown, { passive: false });
-            canvas.addEventListener('touchmove', onPointerMove, { passive: false });
-            canvas.addEventListener('touchend', onPointerUp, { passive: false });
-            canvas.addEventListener('touchcancel', onPointerUp, { passive: false });
-        }
-
-        // modal controls
-        document.getElementById('modalBackdrop').onclick = closeProjectModal;
-        modalCloseBtn.onclick = closeProjectModal;
-        fullProjectBtn.onclick = handleFullProjectClick;
-
-        // fade out instructions after a few seconds
-        setTimeout(() => {
-            const el = document.getElementById('instructions');
-            if (el) el.style.opacity = '0';
-        }, 6000);
-
-        animate();
-    }
-
-    /* ---------- Event handlers ---------- */
-    function onPointerDown(event) {
-        if (isModalOpen) return;
-        event.preventDefault();
-        const p = getPointerCoordinates(event, false);
-        clickStartScreen.x = p.clientX;
-        clickStartScreen.y = p.clientY;
-
-        // cast ray
-        raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(nodeGroup.children, false);
-
-        if (intersects.length > 0) {
-            const hit = intersects[0];
-            draggedNode = hit.object;
-            controls.enabled = false;
-
-            // plane normal - use camera direction
-            const camDir = new THREE.Vector3();
-            camera.getWorldDirection(camDir);
-            plane.setFromNormalAndCoplanarPoint(camDir, hit.point);
-            offset.copy(hit.point).sub(draggedNode.position);
-
-            // highlight while dragging
-            if (draggedNode.material && draggedNode.material.emissive) {
-                draggedNode.material.emissive.set(0x00ff00);
-            }
-        } else {
-            draggedNode = null;
-        }
-    }
-
-    function onPointerMove(event) {
-        if (isModalOpen) return;
-        event.preventDefault();
-        getPointerCoordinates(event, false);
-
-        if (draggedNode) {
-            raycaster.setFromCamera(mouse, camera);
-            if (raycaster.ray.intersectPlane(plane, intersection)) {
-                draggedNode.position.copy(intersection).sub(offset);
-            }
-        } else {
-            // hover effect
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(nodeGroup.children, false);
-
-            // reset emissive for all nodes except active/dragged ones
-            nodeGroup.children.forEach(n => {
-                if (n.material && n.userData && n.userData.isNode) {
-                    // keep a subtle emissive
-                    n.material.emissive.copy(n.material.color).multiplyScalar(0.14);
-                }
-            });
-
-            if (intersects.length > 0) {
-                renderer.domElement.style.cursor = 'pointer';
-                const top = intersects[0].object;
-                if (top.material && top.material.emissive) {
-                    top.material.emissive.set(0x00ffcc);
-                }
-            } else {
-                renderer.domElement.style.cursor = 'grab';
-            }
-        }
-    }
-
-    function onPointerUp(event) {
-        if (isModalOpen) return;
-        event.preventDefault();
-        const p = getPointerCoordinates(event, true);
-
-        if (draggedNode) {
-            const distanceMoved = Math.hypot(p.clientX - clickStartScreen.x, p.clientY - clickStartScreen.y);
-
-            // restore emissive
-            if (draggedNode.material && draggedNode.material.emissive) {
-                draggedNode.material.emissive.copy(draggedNode.material.color).multiplyScalar(0.14);
-            }
-
-            if (distanceMoved < CLICK_THRESHOLD) {
-                // treat as click/tap
-                showProjectModal(draggedNode.userData);
-            } else {
-                // flick: small velocity
-                const flickX = (p.clientX - clickStartScreen.x) * 0.005;
-                const flickY = (p.clientY - clickStartScreen.y) * 0.005;
-                draggedNode.userData.vel.set(flickX, -flickY, 0).applyQuaternion(camera.quaternion);
-            }
-
-            draggedNode = null;
-            controls.enabled = true;
-        } else {
-            // If pointer up without previously pressing a node, check if we released on a node (fast tap without down intersect due to slight finger movement)
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(nodeGroup.children, false);
-            if (intersects.length > 0) {
-                const hit = intersects[0];
-                showProjectModal(hit.object.userData);
-            }
-        }
-    }
-
-    /* ---------- Create stars/galaxy / nodes ---------- */
-    function createBackgroundStars(count = 800) {
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(count * 3);
-        const colors = new Float32Array(count * 3);
-        const color = new THREE.Color();
-
-        for (let i = 0; i < count; i++) {
-            const r = Math.random() * 700 + 50;
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos(Math.random() * 2 - 1);
-
-            positions[i*3 + 0] = r * Math.sin(phi) * Math.cos(theta);
-            positions[i*3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-            positions[i*3 + 2] = r * Math.cos(phi);
-
-            color.setHSL(Math.random() * 0.2 + 0.5, 0.6, Math.random() * 0.5 + 0.3);
-            colors[i*3 + 0] = color.r;
-            colors[i*3 + 1] = color.g;
-            colors[i*3 + 2] = color.b;
-        }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-        const material = new THREE.PointsMaterial({
-            size: 0.9,
-            vertexColors: true,
-            transparent: true,
-            sizeAttenuation: true,
-            blending: THREE.AdditiveBlending
+      // Background "stars"
+      for (let i = 0; i < 300; i++) {
+        stars.push({
+          x: random(-width, width),
+          y: random(-height, height),
+          z: random(-500, 500),
+          r: random(1, 3)
         });
+      }
 
-        const stars = new THREE.Points(geometry, material);
-        scene.add(stars);
-    }
-
-    function createGalaxyNetwork() {
-        const sphereGeo = new THREE.SphereGeometry(NODE_RADIUS, 24, 24);
-
-        ARTWORKS.forEach(data => {
-            // random spherical placement inside radius
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos(Math.random() * 2 - 1);
-            const r = Math.random() * GALAXY_RADIUS;
-
-            const material = new THREE.MeshStandardMaterial({
-                color: new THREE.Color(data.color),
-                metalness: 0.08,
-                roughness: 0.45,
-                emissive: new THREE.Color(data.color).multiplyScalar(0.14)
-            });
-
-            const sphere = new THREE.Mesh(sphereGeo, material);
-            sphere.position.set(
-                r * Math.sin(phi) * Math.cos(theta),
-                r * Math.sin(phi) * Math.sin(theta),
-                r * Math.cos(phi)
-            );
-
-            // store extended userData without overwriting original record
-            sphere.userData = {
-                ...data,
-                originalPosition: sphere.position.clone(),
-                animationOffset: Math.random() * Math.PI * 2,
-                vel: new THREE.Vector3(0,0,0),
-                isNode: true
-            };
-
-            nodeGroup.add(sphere);
-            nodes.push(sphere);
+      // Spheres / Planets
+      for (let i = 0; i < planetNames.length; i++) {
+        planets.push({
+          name: planetNames[i],
+          angle: random(TWO_PI),
+          radius: random(150, 400),
+          speed: random(0.0005, 0.002), // very slow orbit
+          size: random(40, 80),
+          color: [random(100, 255), random(100, 255), random(100, 255)]
         });
+      }
 
-        // create edges lines
-        EDGES.forEach(edge => {
-            const nodeA = nodes.find(n => n.userData.id === edge.from);
-            const nodeB = nodes.find(n => n.userData.id === edge.to);
-            if (!nodeA || !nodeB) return;
-
-            // use dynamic buffer geometry (6 floats)
-            const positions = new Float32Array(6);
-            positions[0] = nodeA.position.x;
-            positions[1] = nodeA.position.y;
-            positions[2] = nodeA.position.z;
-            positions[3] = nodeB.position.x;
-            positions[4] = nodeB.position.y;
-            positions[5] = nodeB.position.z;
-
-            const geom = new THREE.BufferGeometry();
-            geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-            const mat = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.7 });
-            const line = new THREE.Line(geom, mat);
-            lineGroup.add(line);
-
-            edges.push({ mesh: line, nodeA, nodeB });
-        });
+      // Populate dropdown menu with planet names
+      let menu = document.getElementById("projectsMenu");
+      planets.forEach(p => {
+        let link = document.createElement("a");
+        link.textContent = p.name;
+        link.href = "#"; // can change to actual page
+        menu.appendChild(link);
+      });
     }
 
-    /* ---------- Labels (2D) ---------- */
-    function createLabels() {
-        const labelContainer = document.getElementById('label-container');
-        nodes.forEach(node => {
-            const d = node.userData;
-            const label = document.createElement('div');
-            label.className = 'node-label';
-            label.id = `label-${d.id}`;
-            label.textContent = d.title;
-            d._labelEl = label; // store reference
-            labelContainer.appendChild(label);
-        });
+    function draw() {
+      background(0);
+
+      // Draw background stars
+      push();
+      for (let s of stars) {
+        push();
+        translate(s.x, s.y, s.z);
+        noStroke();
+        fill(255);
+        sphere(s.r); // small circles as stars
+        pop();
+      }
+      pop();
+
+      // Animate planets
+      rotateY(frameCount * 0.0005);
+
+      for (let p of planets) {
+        push();
+        p.angle += p.speed; // update orbit
+        let px = cos(p.angle) * p.radius;
+        let py = sin(p.angle * 0.7) * p.radius * 0.5; // add variation to orbit
+        let pz = sin(p.angle) * p.radius;
+
+        translate(px, py, pz);
+        noStroke();
+        ambientMaterial(p.color[0], p.color[1], p.color[2]);
+        sphere(p.size);
+        pop();
+      }
     }
 
-    function updateLabels() {
-        nodes.forEach(node => {
-            const label = node.userData._labelEl;
-            if (!label) return;
-
-            tempV.setFromMatrixPosition(node.matrixWorld);
-            tempV.project(camera);
-
-            const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
-            const y = (-tempV.y * 0.5 + 0.5) * window.innerHeight;
-            const visible = node.visible && tempV.z < 1;
-
-            label.style.transform = 'translate(-50%, -100%)';
-            label.style.left = `${x}px`;
-            label.style.top = `${y}px`;
-            label.style.display = visible ? 'block' : 'none';
-
-            // fade based on distance
-            const distance = camera.position.distanceTo(node.position);
-            const opacity = Math.min(1.0, 120 / Math.max(1, distance));
-            label.style.opacity = visible ? opacity : 0;
-        });
+    function windowResized() {
+      resizeCanvas(windowWidth, windowHeight);
     }
-
-    /* ---------- Animation loop ---------- */
-    function animate(time) {
-        requestAnimationFrame(animate);
-
-        // simple breathing + velocity
-        nodes.forEach(node => {
-            const data = node.userData;
-            const pulse = Math.sin((time || 0) * 0.001 + data.animationOffset) * 0.5;
-            node.scale.setScalar(1 + pulse * 0.05);
-
-            node.position.add(data.vel);
-            data.vel.multiplyScalar(0.96);
-
-            // keep network bounded
-            if (node.position.length() > GALAXY_RADIUS * 1.4) {
-                node.position.multiplyScalar(0.995);
-            }
-        });
-
-        // update edge positions
-        edges.forEach(e => {
-            const arr = e.mesh.geometry.attributes.position.array;
-            arr[0] = e.nodeA.position.x;
-            arr[1] = e.nodeA.position.y;
-            arr[2] = e.nodeA.position.z;
-            arr[3] = e.nodeB.position.x;
-            arr[4] = e.nodeB.position.y;
-            arr[5] = e.nodeB.position.z;
-            e.mesh.geometry.attributes.position.needsUpdate = true;
-        });
-
-        controls.update();
-        updateLabels();
-        renderer.render(scene, camera);
-    }
-
-    /* ---------- Resize ---------- */
-    function onWindowResize() {
-        if (!camera || !renderer) return;
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-
-    /* ---------- Filtering UI ---------- */
-    function populateFilterMenu() {
-        const uniqueCategories = Array.from(new Set(ARTWORKS.map(a => a.category))).sort();
-        const categoryFilter = document.getElementById('category-filter');
-        categoryFilter.innerHTML = '';
-        const allOption = document.createElement('option');
-        allOption.value = 'all';
-        allOption.textContent = 'Show All Projects';
-        categoryFilter.appendChild(allOption);
-
-        uniqueCategories.forEach(c => {
-            const o = document.createElement('option');
-            o.value = c;
-            o.textContent = c;
-            categoryFilter.appendChild(o);
-        });
-
-        categoryFilter.addEventListener('change', (e) => setFilter(e.target.value));
-    }
-
-    function setFilter(filterKey) {
-        nodes.forEach(node => {
-            const isVisible = filterKey === 'all' || node.userData.category === filterKey;
-            node.visible = isVisible;
-            if (node.userData._labelEl) node.userData._labelEl.style.display = isVisible ? 'block' : 'none';
-        });
-
-        edges.forEach(edge => {
-            const a = edge.nodeA.visible;
-            const b = edge.nodeB.visible;
-            edge.mesh.visible = a && b;
-        });
-    }
-
-    /* ========== Modal logic (robust, mobile-friendly) ========== */
-    function showProjectModal(data) {
-        isModalOpen = true;
-        document.body.style.overflow = 'hidden'; // prevent page scroll on mobile
-
-        currentProjectUrl = data.url || '';
-
-        // inject content
-        modalDetailsDiv.innerHTML = `
-            <header>
-                <h3 id="modal-title">${escapeHtml(data.title)}</h3>
-                <p class="category">${escapeHtml(data.category)}</p>
-            </header>
-            <div class="image-card">
-                <img src="${escapeAttr(data.image_path)}" alt="${escapeAttr(data.title)}"
-                     onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Placeholder'">
-                <div class="description">${escapeHtml(data.description)}</div>
-            </div>
-            <div class="tag-container">
-                ${data.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
-            </div>
-            <div class="color-indicator">
-                <div class="color-swatch" style="background:${escapeAttr(data.color)}"></div>
-                <div style="opacity:0.9">${escapeHtml(data.color)}</div>
-            </div>
-        `;
-
-        actionMessage.style.display = 'none';
-        projectModal.style.display = 'flex';
-        // focus full project button for keyboard/mobile convenience
-        fullProjectBtn.focus();
-    }
-
-    function closeProjectModal() {
-        isModalOpen = false;
-        projectModal.style.display = 'none';
-        document.body.style.overflow = ''; // restore
-    }
-
-    function handleFullProjectClick() {
-        if (!currentProjectUrl) return;
-        actionMessage.textContent = `Opening ${currentProjectUrl}`;
-        actionMessage.style.display = 'block';
-        // open in new tab/window
-        window.open(currentProjectUrl, '_blank', 'noopener');
-        // close modal after short delay so the user can see the action message
-        setTimeout(() => {
-            actionMessage.style.display = 'none';
-            closeProjectModal();
-        }, 900);
-    }
-
-    /* ---------- small helpers to protect injected HTML ---------- */
-    function escapeHtml(str = '') {
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-    }
-    function escapeAttr(str = '') {
-        return escapeHtml(str).replace(/"/g, '&quot;');
-    }
-
-    /* ---------- Start ---------- */
-    window.onload = init;
-    </script>
+  </script>
 </body>
 </html>
