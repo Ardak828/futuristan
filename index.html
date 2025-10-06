@@ -155,7 +155,7 @@
             const height = Math.floor(p.random(300, 500));
             const color = ['888888', '4B5563', '374151'][Math.floor(p.random(3))];
             const text = encodeURIComponent(['DATA NODE', 'ART PIECE', 'PROJECT'][Math.floor(p.random(3))]);
-            return `https://placehold.co/${width}x${height}/${color}/FFFFFF?text=${text}`;
+            return `https://placehold.co/${width}x{height}/${color}/FFFFFF?text=${text}`;
         }
         
         // Mock p5 object for initial data generation
@@ -194,8 +194,8 @@
         const BOUNDARY_STRENGTH = 0.0005; 
         const MAX_DISTANCE_FROM_CENTER = 400; 
         
-        // CRITICAL FIX: Increased threshold to 40 for more forgiving mobile taps
-        const CLICK_THRESHOLD = 40; 
+        // CRITICAL MOBILE FIX: Increased threshold to 80 for very forgiving mobile taps
+        const CLICK_THRESHOLD = 80; 
         
         const STAR_COUNT = 1200; 
         const Z_DEPTH_RANGE = 1000; 
@@ -629,11 +629,6 @@
                 // Ignore all canvas interaction if the modal is open or pinching is active
                 if (isModalOpen || isPinching) return; 
                 
-                // Safety Guard: Ignore clicks starting near the external dropdown menu (top-left)
-                if (p.mouseX < 300 && p.mouseY < 100) {
-                     return; 
-                }
-
                 initialClickX = p.mouseX;
                 initialClickY = p.mouseY;
 
@@ -673,7 +668,8 @@
                     viewOffset.x += p.mouseX - p.pmouseX;
                     viewOffset.y += p.mouseY - p.pmouseY;
                 }
-                return false; // Prevent default touch/drag behavior (like scrolling the whole page)
+                // CRITICAL FIX: Always return false for single-finger input to prevent browser scrolling/zooming
+                return false; 
             }
 
             p.mouseReleased = () => {
@@ -681,14 +677,16 @@
                     // Check if this was a quick tap (movement less than CLICK_THRESHOLD) or a drag
                     const totalMovement = p.dist(initialClickX, initialClickY, p.mouseX, p.mouseY);
 
-                    // If movement is within the generous threshold (40 pixels), treat it as a tap.
+                    // If movement is within the generous threshold (80 pixels), treat it as a tap.
                     if (totalMovement < CLICK_THRESHOLD) {
                         showProjectModal(draggedNode); 
+                        // CRITICAL CLEANUP: Ensure velocity is zero for a clean tap/stop
+                        draggedNode.vel.mult(0);
+                    } else {
+                        // Apply velocity (for a flick effect when released after a drag)
+                        draggedNode.vel.x = (p.mouseX - p.pmouseX) * 0.1;
+                        draggedNode.vel.y = (p.mouseY - p.pmouseY) * 0.1;
                     }
-                    
-                    // Apply velocity (for a flick effect when released after a drag)
-                    draggedNode.vel.x = (p.mouseX - p.pmouseX) * 0.1;
-                    draggedNode.vel.y = (p.mouseY - p.pmouseY) * 0.1;
                     
                     draggedNode.isDragging = false;
                     draggedNode = null;
@@ -717,7 +715,7 @@
                     return false; // Suppress default browser zoom/scroll while pinching on canvas
                 }
                 
-                // One finger is handled by mouseDragged logic, return false to prevent scrolling
+                // One finger is handled by mouseDragged logic, ensure touchEnded doesn't double fire
                 if (p.touches.length === 1) {
                     return false;
                 }
@@ -731,6 +729,7 @@
                 previousTouchDistance = 0;
                 
                 // Allow default behavior to ensure native elements (like dropdown) work correctly
+                // Note: p.mouseReleased handles the single-tap/drag logic
                 return true; 
             }
         };
