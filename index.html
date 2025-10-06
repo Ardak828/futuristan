@@ -11,7 +11,8 @@
         body {
             font-family: 'Inter', sans-serif;
             margin: 0;
-            overflow: hidden; 
+            /* Allow scrolling only if the modal is closed */
+            overflow: auto; 
             background-color: #000000; 
             color: #ffffff;
             display: flex;
@@ -35,11 +36,13 @@
             width: 100%;
             height: 100%;
             z-index: 10; 
+            /* This ensures the canvas fills the whole screen */
         }
         
-        /* Navigation elements (high Z-index) */
+        /* Navigation elements (high Z-index to appear over canvas) */
         #nav-container, .instructions-overlay {
             z-index: 100; 
+            /* Higher than canvas (z-index: 10) */
         }
 
         /* Styling for the dropdown menu */
@@ -52,6 +55,7 @@
             background-position: right 0.75rem center;
             background-size: 1.5em 1.5em;
             padding-right: 2.5rem;
+            cursor: pointer;
         }
         
         /* Style for the project card image in the modal */
@@ -60,25 +64,29 @@
             object-fit: cover;
         }
 
+        /* Fixed body overflow when modal is open */
+        .modal-open {
+            overflow: hidden;
+        }
     </style>
 </head>
-<body>
+<body class="bg-black">
 
     <div id="app-container">
         
         <!-- === GALAXY VIEW: P5 SKETCH AND UI === -->
         <div id="p5-canvas-container"></div>
     
-        <!-- Dropdown Navigation Menu (Top Left for all devices) -->
-        <div id="nav-container" class="fixed top-4 left-4"> 
+        <!-- Dropdown Navigation Menu (Top Left) -->
+        <!-- Z-INDEX 100 ensures this sits above the canvas and is tappable -->
+        <div id="nav-container" class="fixed top-4 left-4 z-[100]"> 
             <select id="category-filter" class="w-48 sm:w-56 md:w-64 p-3 rounded-xl bg-white/90 border-2 border-black text-black shadow-lg text-sm font-semibold focus:ring-4 focus:ring-black transition cursor-pointer">
                 <!-- Options populated by JS -->
             </select>
         </div>
 
         <!-- Instructions Overlay (Desktop/Tablet) -->
-        <!-- Hidden on small screens (block sm:hidden) -->
-        <div class="instructions-overlay fixed top-4 right-4 p-3 bg-white/90 rounded-lg text-sm text-gray-700 border border-black shadow-xl hidden sm:block">
+        <div class="instructions-overlay fixed top-4 right-4 p-3 bg-white/90 rounded-lg text-sm text-gray-700 border border-black shadow-xl hidden sm:block z-[100]">
             <p class="font-semibold text-black">Universe Navigation (Desktop/Scroll):</p>
             <ul class="list-disc list-inside mt-1 space-y-0.5">
                 <li>Scroll to **Zoom** in/out.</li>
@@ -88,8 +96,7 @@
         </div>
         
         <!-- Instructions Overlay (Mobile/Touch Guide) -->
-        <!-- Visible only on small screens (block sm:hidden) -->
-        <div class="instructions-overlay fixed top-4 right-4 p-2 bg-white/90 rounded-lg text-xs text-gray-700 border border-black shadow-xl block sm:hidden">
+        <div class="instructions-overlay fixed top-4 right-4 p-2 bg-white/90 rounded-lg text-xs text-gray-700 border border-black shadow-xl block sm:hidden z-[100]">
             <p class="font-semibold text-black mb-1">Touch Guide:</p>
             <p>1 Finger: **Pan/Drag/Tap**</p>
             <p>2 Fingers: **Pinch to Zoom**</p>
@@ -97,9 +104,10 @@
     </div>
     
     <!-- === PROJECT MODAL/OVERLAY WINDOW === -->
+    <!-- CRITICAL: z-[1000] ensures it appears over ALL other elements -->
     <div id="projectModal" class="hidden fixed inset-0 z-[1000] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         
-        <!-- Modal Backdrop -->
+        <!-- Modal Backdrop (Clicking outside closes the modal) -->
         <div class="fixed inset-0 bg-gray-900 bg-opacity-80 transition-opacity" onclick="closeProjectModal()"></div>
 
         <!-- Modal Container (Centered and responsive) -->
@@ -110,7 +118,7 @@
                 
                 <!-- Close Button (Top Right) -->
                 <button type="button" 
-                        class="absolute top-4 right-4 text-gray-400 hover:text-white focus:outline-none p-1 transition duration-150 rounded-full hover:bg-gray-800"
+                        class="absolute top-4 right-4 text-gray-400 hover:text-white focus:outline-none p-1 transition duration-150 rounded-full hover:bg-gray-800 z-[1010]"
                         onclick="closeProjectModal()">
                     <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -144,14 +152,12 @@
     <script>
         // === CUSTOMIZATION POINT 1: ARTWORK DATA & IMAGE PATHS ===
         
-        // Helper to generate a random grayscale color string
         function randomGrayscaleColor(p) {
             const g = Math.floor(p.random(80, 255)); 
             const hex = g.toString(16).padStart(2, '0');
             return `#${hex}${hex}${hex}`;
         }
 
-        // Helper to generate a dynamic placeholder URL (used for the detail view image)
         function randomPlaceholderUrl(p) {
             const width = Math.floor(p.random(600, 1000));
             const height = Math.floor(p.random(300, 500));
@@ -160,10 +166,8 @@
             return `https://placehold.co/${width}x${height}/${color}/FFFFFF?text=${text}`;
         }
         
-        // Mock p5 for pre-setup color gen
         const TEMP_P5_MOCK = { random: (min, max) => Math.random() * (max - min) + min }; 
 
-        // ARTWORKS data. 
         const ARTWORKS = [
             { id: 0, title: "Conceptual Art - Light Form", category: "Conceptual Art", tags: ["#3D", "#SciFi", "#Light"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Conceptual+Art", description: "Explores the interplay between perceived reality and light's formless nature. A decentralized ledger of light-based art experiments.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
             { id: 1, title: "Digital Portrait Study", category: "Digital Sculpture", tags: ["#Particles", "#Monochrome", "#Face"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Digital+Sculpture", description: "A dynamic study of the human form rendered entirely through particle systems, constantly shifting and reforming. This node holds the original source code.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
@@ -177,7 +181,6 @@
             { id: 9, title: "Complex Pattern", category: "Digital Painting", tags: ["#Retro", "#Vapor", "#Glitch"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Digital+Painting", description: "An intricate pattern that mimics old-school vector art with digital decay effects. The core pattern evolves daily.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
         ];
         
-        // Edges define the connections between the artworks (node IDs)
         const EDGES = [
             { from: 0, to: 1 }, { from: 1, to: 5 }, { from: 2, to: 6 }, 
             { from: 3, to: 7 }, { from: 0, to: 4 }, { from: 6, to: 1 }, 
@@ -198,7 +201,7 @@
         const BOUNDARY_STRENGTH = 0.0005; 
         const MAX_DISTANCE_FROM_CENTER = 400; 
         
-        // INCREASED THRESHOLD FOR RELIABLE MOBILE TAPPING (was 5)
+        // CRITICAL FIX: Increased threshold for reliable mobile tapping
         const CLICK_THRESHOLD = 20; 
         
         const STAR_COUNT = 1200; 
@@ -214,6 +217,7 @@
         let viewOffset; 
         let currentFilter = 'all'; 
         let currentProjectUrl = ''; 
+        let isModalOpen = false;
 
         // Variables for Drag/Touch functionality
         let draggedNode = null;
@@ -233,7 +237,6 @@
             return { type: styleType, weight, speed };
         }
         
-        // Generates a random monochrome p5.Graphics texture locally
         function createMonochromeTexture(p, text) {
             const w = 150;
             const h = 100;
@@ -626,12 +629,12 @@
                 const zoomRate = 0.1;
                 let newScale = event.delta < 0 ? currentScale - zoomRate : currentScale + zoomRate;
                 currentScale = p.constrain(newScale, 0.5, 5.0); 
-                return false; 
+                return false; // Prevent default scrolling
             };
             
             p.mousePressed = () => {
-                // IMPORTANT: If the modal is open OR we are pinching, ignore clicks/touches on the canvas
-                if (!document.getElementById('projectModal').classList.contains('hidden') || isPinching) return; 
+                // Ignore all canvas interaction if the modal is open or pinching is active
+                if (isModalOpen || isPinching) return; 
 
                 // Use p.mouseX/Y, which p5 maps to the first touch point on mobile
                 initialClickX = p.mouseX;
@@ -661,7 +664,8 @@
             }
 
             p.mouseDragged = () => {
-                if (isPinching || !document.getElementById('projectModal').classList.contains('hidden')) return; 
+                // Ignore all canvas interaction if the modal is open or pinching is active
+                if (isModalOpen || isPinching) return; 
                 
                 if (draggedNode) {
                     const unscaledX = (p.mouseX - viewOffset.x) / currentScale + viewOffset.x;
@@ -673,6 +677,7 @@
                     viewOffset.x += p.mouseX - p.pmouseX;
                     viewOffset.y += p.mouseY - p.pmouseY;
                 }
+                return false; // Prevent default touch/drag behavior (like scrolling the whole page)
             }
 
             p.mouseReleased = () => {
@@ -692,17 +697,17 @@
                     draggedNode.isDragging = false;
                     draggedNode = null;
                 }
-                
-                // Important: returning false here would prevent the dropdown from working.
-                // Since the dropdown has a higher Z-index and is outside the canvas, 
-                // we only need to worry about suppressing touch defaults in touchMoved.
+                // Don't return false here, as it might block native click events on UI outside the canvas (like the dropdown)
             }
             
             // --- 6. TOUCH GESTURE LOGIC (Multi-Touch for Pinch Zoom) ---
 
             p.touchMoved = () => {
-                if (document.getElementById('projectModal').classList.contains('hidden') && p.touches.length === 2) {
-                    // Two fingers detected: Start/Continue Pinch-to-Zoom
+                // If modal is open, let touches move (i.e. scroll modal content)
+                if (isModalOpen) return true; 
+
+                if (p.touches.length === 2) {
+                    // Two fingers detected: Pinch-to-Zoom
                     isPinching = true;
                     
                     const currentTouchDistance = p.dist(p.touches[0].x, p.touches[0].y, p.touches[1].x, p.touches[1].y);
@@ -714,20 +719,14 @@
                     }
                     
                     previousTouchDistance = currentTouchDistance;
-                    return false; // Suppress default browser zoom/scroll
+                    return false; // Suppress default browser zoom/scroll while pinching on canvas
                 }
                 
-                // If 1 touch is active, we let mouseDragged handle it. Return false to block mobile scrolling/panning.
-                if (p.touches.length > 0 && !document.getElementById('projectModal').classList.contains('hidden')) {
-                     // If the modal is open, don't block default scroll if touch is over the modal
-                     return true;
-                }
-                
-                if (p.touches.length > 0) {
+                // One finger is handled by mouseDragged logic, return false to prevent scrolling
+                if (p.touches.length === 1) {
                     return false;
                 }
                 
-                // If 0 touches, let default behavior happen
                 return true; 
             }
             
@@ -736,8 +735,8 @@
                 isPinching = false;
                 previousTouchDistance = 0;
                 
-                // We rely on p.mouseReleased to handle the click detection and node release logic
-                return false; // Suppress default browser actions related to the tap
+                // Allow default behavior to ensure native elements (like dropdown) work correctly
+                return true; 
             }
         };
 
@@ -750,9 +749,10 @@
 
 
         function showProjectModal(node) {
-            // Store the URL for the 'View Full Project' button
+            isModalOpen = true; // Set global flag
+            document.body.classList.add('modal-open'); // Lock background scroll
             currentProjectUrl = node.url; 
-            actionMessage.classList.add('hidden'); // Reset message
+            actionMessage.classList.add('hidden'); 
             
             // Populate the modal content
             modalDetailsDiv.innerHTML = `
@@ -780,14 +780,14 @@
                 </div>
             `;
             
-            // Show the modal and prevent background scrolling
+            // Show the modal
             projectModal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden'; 
         }
 
         function closeProjectModal() {
+            isModalOpen = false; // Clear global flag
             projectModal.classList.add('hidden');
-            document.body.style.overflow = ''; // Restore background scrolling
+            document.body.classList.remove('modal-open'); // Restore background scrolling
         }
         
         function handleFullProjectClick() {
@@ -823,11 +823,12 @@
 
              // Set initial filter and attach listener
              setFilter('all');
+             // The native change event on select is reliable on mobile
              categoryFilter.addEventListener('change', (e) => setFilter(e.target.value));
              
              // Optional: Close modal when Escape key is pressed
              document.addEventListener('keydown', (e) => {
-                 if (e.key === 'Escape' && !projectModal.classList.contains('hidden')) {
+                 if (e.key === 'Escape' && isModalOpen) {
                      closeProjectModal();
                  }
              });
