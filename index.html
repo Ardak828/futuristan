@@ -19,6 +19,15 @@
             align-items: center;
             height: 100vh;
         }
+        
+        /* Main application container */
+        #app-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* Container for the p5.js visualization */
         #p5-canvas-container {
             position: absolute;
             top: 0;
@@ -28,24 +37,9 @@
             z-index: 10; 
         }
         
-        /* High Z-index for navigation and instructions */
+        /* Navigation elements (high Z-index) */
         #nav-container, .instructions-overlay {
             z-index: 100; 
-        }
-        .instructions-overlay {
-            pointer-events: none; 
-            transition: opacity 0.3s;
-        }
-        /* Modal specific styles */
-        .modal-overlay {
-            z-index: 150; 
-            /* Pure black overlay for maximum contrast */
-            background-color: rgba(0, 0, 0, 0.95); 
-            backdrop-filter: blur(8px);
-        }
-        .modal-content-container {
-            max-height: 80vh;
-            overflow-y: auto;
         }
 
         /* Styling for the dropdown menu */
@@ -53,64 +47,93 @@
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
-            /* Custom arrow icon in white */
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23FFFFFF'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd' /%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23000000'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd' /%3E%3C/svg%3E");
             background-repeat: no-repeat;
             background-position: right 0.75rem center;
             background-size: 1.5em 1.5em;
             padding-right: 2.5rem;
         }
+        
+        /* Style for the project card image in the modal */
+        .modal-card-image {
+            height: 200px;
+            object-fit: cover;
+        }
+
     </style>
 </head>
 <body>
 
-    <!-- Container for the p5.js visualization -->
-    <div id="p5-canvas-container"></div>
+    <div id="app-container">
+        
+        <!-- === GALAXY VIEW: P5 SKETCH AND UI === -->
+        <div id="p5-canvas-container"></div>
+    
+        <!-- Dropdown Navigation Menu (Top Left for all devices) -->
+        <div id="nav-container" class="fixed top-4 left-4"> 
+            <select id="category-filter" class="w-48 sm:w-56 md:w-64 p-3 rounded-xl bg-white/90 border-2 border-black text-black shadow-lg text-sm font-semibold focus:ring-4 focus:ring-black transition cursor-pointer">
+                <!-- Options populated by JS -->
+            </select>
+        </div>
 
-    <!-- Dropdown Navigation Menu (Top Left) -->
-    <div id="nav-container" class="fixed top-4 left-4"> 
-        <!-- Background: Gray 900, Border: Gray 600, Text: White -->
-        <select id="category-filter" class="w-56 md:w-64 p-3 rounded-xl bg-gray-900/90 border-2 border-gray-600/50 text-white shadow-2xl text-sm font-semibold focus:ring-4 focus:ring-white transition cursor-pointer">
-            <!-- Options populated by JS -->
-        </select>
+        <!-- Instructions Overlay (Desktop/Tablet) -->
+        <!-- Hidden on small screens (block sm:hidden) -->
+        <div class="instructions-overlay fixed top-4 right-4 p-3 bg-white/90 rounded-lg text-sm text-gray-700 border border-black shadow-xl hidden sm:block">
+            <p class="font-semibold text-black">Universe Navigation (Desktop/Scroll):</p>
+            <ul class="list-disc list-inside mt-1 space-y-0.5">
+                <li>Scroll to **Zoom** in/out.</li>
+                <li>**Drag** a planet to move it.</li>
+                <li>**Quick-click** a planet to open **Project Modal**.</li>
+            </ul>
+        </div>
+        
+        <!-- Instructions Overlay (Mobile/Touch Guide) -->
+        <!-- Visible only on small screens (block sm:hidden) -->
+        <div class="instructions-overlay fixed top-4 right-4 p-2 bg-white/90 rounded-lg text-xs text-gray-700 border border-black shadow-xl block sm:hidden">
+            <p class="font-semibold text-black mb-1">Touch Guide:</p>
+            <p>1 Finger: **Pan/Drag/Tap**</p>
+            <p>2 Fingers: **Pinch to Zoom**</p>
+        </div>
     </div>
+    
+    <!-- === PROJECT MODAL/OVERLAY WINDOW === -->
+    <div id="projectModal" class="hidden fixed inset-0 z-[1000] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        
+        <!-- Modal Backdrop -->
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-80 transition-opacity" onclick="closeProjectModal()"></div>
 
-    <!-- Instructions Overlay -->
-    <!-- Background: Gray 900, Text: Gray 300/White -->
-    <div class="instructions-overlay fixed top-4 right-4 p-3 bg-gray-900/80 rounded-lg text-sm text-gray-300 shadow-xl">
-        <p class="font-semibold text-white">Universe Navigation:</p>
-        <ul class="list-disc list-inside mt-1 space-y-0.5">
-            <li>Scroll to **Zoom** in/out.</li>
-            <li>**Drag** a planet to move it.</li>
-            <li>**Quick-click** a planet to open **World View**.</li>
-            <li>Use **Top-Left Dropdown** to filter projects.</li>
-        </ul>
-    </div>
-
-    <!-- Artwork Content Modal Overlay -->
-    <div id="artwork-modal" class="modal-overlay hidden fixed inset-0 flex items-center justify-center p-4">
-        <!-- Modal Content Container: Background Gray 900, Border Gray 500 -->
-        <div class="modal-content-container bg-gray-900 border border-gray-500/30 rounded-xl shadow-2xl p-6 w-full max-w-lg md:max-w-xl lg:max-w-2xl transform transition-all duration-300">
-            <!-- Header elements confirmed as white/gray -->
-            <div class="flex justify-between items-start sticky top-0 bg-gray-900 pt-0 pb-4">
-                <div>
-                    <h2 id="modal-title" class="text-3xl font-extrabold text-white mb-1">Artwork Title</h2>
-                    <p id="modal-category" class="text-sm font-medium text-gray-400 uppercase tracking-wider">Category</p>
-                </div>
-                <!-- Close Button: Gray 400 hover White, hover background Gray 700 -->
-                <button id="close-modal-btn" class="text-gray-400 hover:text-white transition duration-200 p-2 -mt-2 -mr-2 rounded-full hover:bg-gray-700">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
+        <!-- Modal Container (Centered and responsive) -->
+        <div class="flex items-center justify-center min-h-screen p-4 sm:p-6">
             
-            <!-- Image container placeholder: Gray 800 background, Gray 700 border -->
-            <div id="modal-image-container" class="mb-6 rounded-lg overflow-hidden border border-gray-700/50 flex items-center justify-center h-48 bg-gray-800">
-                <!-- Image or Placeholder Injected by JavaScript -->
-            </div>
+            <!-- Modal Panel -->
+            <div id="modal-content-panel" class="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-xl mx-auto transform transition-all p-6 sm:p-8 text-white">
+                
+                <!-- Close Button (Top Right) -->
+                <button type="button" 
+                        class="absolute top-4 right-4 text-gray-400 hover:text-white focus:outline-none p-1 transition duration-150 rounded-full hover:bg-gray-800"
+                        onclick="closeProjectModal()">
+                    <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
 
-            <!-- Modal Content Text: Gray 300 -->
-            <div id="modal-content" class="text-gray-300">
-                <!-- Content injected by JavaScript -->
+                <!-- Content will be injected here by JavaScript -->
+                <div id="modal-project-details" class="space-y-4">
+                    <!-- Project details inserted here -->
+                </div>
+
+                <!-- Footer Action Button -->
+                <div class="mt-6">
+                    <button type="button" 
+                            id="fullProjectBtn"
+                            class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-md px-4 py-3 bg-indigo-600 text-base font-semibold text-white hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 transition duration-150 sm:text-lg"
+                            onclick="handleFullProjectClick()">
+                        View Full Project
+                    </button>
+                    <p id="actionMessage" class="mt-3 text-center text-sm text-gray-400 hidden">
+                        Simulating navigation to the full project documentation...
+                    </p>
+                </div>
             </div>
         </div>
     </div>
@@ -119,42 +142,39 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.3/p5.min.js"></script>
     
     <script>
-        // === CUSTOMIZATION POINT 1: ARTWORK DATA & RELATIVE IMAGE PATHS ===
+        // === CUSTOMIZATION POINT 1: ARTWORK DATA & IMAGE PATHS ===
         
         // Helper to generate a random grayscale color string
         function randomGrayscaleColor(p) {
-            // Keep brightness between 80 (dark gray) and 255 (white)
             const g = Math.floor(p.random(80, 255)); 
             const hex = g.toString(16).padStart(2, '0');
             return `#${hex}${hex}${hex}`;
         }
-        
-        // Helper to generate a unique black and white placeholder URL for each node's "world" texture
-        const getPlaceholderUrl = (title) => {
-            const size = 150;
-            // Truncate title and replace spaces for URL text
-            const text = title.replace(/\s/g, '+').substring(0, 15);
-            // Use gray background and white text
-            return `https://placehold.co/${size}x${size}/374151/E5E7EB?text=${text}`;
-        };
-        
-        const TEMP_P5_MOCK = { random: (min, max) => Math.random() * (max - min) + min }; // Mock p5 for pre-setup color gen
 
-        // NOTE: The image_path is now set to a placeholder URL for demonstration.
-        // Replace these with actual image paths if you have them locally.
+        // Helper to generate a dynamic placeholder URL (used for the detail view image)
+        function randomPlaceholderUrl(p) {
+            const width = Math.floor(p.random(600, 1000));
+            const height = Math.floor(p.random(300, 500));
+            const color = ['888888', '4B5563', '374151'][Math.floor(p.random(3))];
+            const text = encodeURIComponent(['DATA NODE', 'ART PIECE', 'PROJECT'][Math.floor(p.random(3))]);
+            return `https://placehold.co/${width}x${height}/${color}/FFFFFF?text=${text}`;
+        }
+        
+        // Mock p5 for pre-setup color gen
+        const TEMP_P5_MOCK = { random: (min, max) => Math.random() * (max - min) + min }; 
+
+        // ARTWORKS data. 
         const ARTWORKS = [
-            // --- UPDATED: Using a real sample image URL for the first node ---
-            { id: 0, title: "Futuristan Flag (Sample Image)", category: "Conceptual Art", tags: ["#3D", "#SciFi"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Futuristan", image_path: "https://picsum.photos/id/1050/150/150" },
-            // ----------------------------------------------------------------
-            { id: 1, title: "Particle Butterfly", category: "Digital Sculpture", tags: ["#Particles", "#Monochrome"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Particle+Butterfly", image_path: getPlaceholderUrl("Particle Butterfly") },
-            { id: 2, title: "Abstract Flow", category: "Abstract Expressionism", tags: ["#Liquid", "#Vibrant"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Abstract+Flow", image_path: getPlaceholderUrl("Abstract Flow") },
-            { id: 3, title: "Point Cloud Tree", category: "Data Visualization", tags: ["#LiDAR", "#Monochrome"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Point+Cloud+Tree", image_path: getPlaceholderUrl("Point Cloud Tree") },
-            { id: 4, title: "Musician Silhouette", category: "Figurative Particles", tags: ["#Music", "#Aura"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Musician+Silhouette", image_path: getPlaceholderUrl("Musician Silhouette") },
-            { id: 5, title: "Neon Lichen", category: "Digital Flora", tags: ["#Neon", "#Organic"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Neon+Lichen", image_path: getPlaceholderUrl("Neon Lichen") },
-            { id: 6, title: "Organic Shell", category: "3D Modeling", tags: ["#Sculpture", "#Hollow"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Organic+Shell", image_path: getPlaceholderUrl("Organic Shell") },
-            { id: 7, title: "Neo Tengri", category: "Abstract 3D", tags: ["#Planets", "#Rings"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Neo+Tengri", image_path: getPlaceholderUrl("Neo Tengri") },
-            { id: 8, title: "Quantum Web", category: "Data Visualization", tags: ["#Code", "#Network"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Quantum+Web", image_path: getPlaceholderUrl("Quantum Web") },
-            { id: 9, title: "Synthwave City", category: "Digital Painting", tags: ["#Retro", "#Vapor"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Synthwave+City", image_path: getPlaceholderUrl("Synthwave City") },
+            { id: 0, title: "Conceptual Art - Light Form", category: "Conceptual Art", tags: ["#3D", "#SciFi", "#Light"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Conceptual+Art", description: "Explores the interplay between perceived reality and light's formless nature. A decentralized ledger of light-based art experiments.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
+            { id: 1, title: "Digital Portrait Study", category: "Digital Sculpture", tags: ["#Particles", "#Monochrome", "#Face"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Digital+Sculpture", description: "A dynamic study of the human form rendered entirely through particle systems, constantly shifting and reforming. This node holds the original source code.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
+            { id: 2, title: "Wireframe Structure", category: "Abstract Expressionism", tags: ["#Liquid", "#Vibrant", "#Topology"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Abstract+Expressionism", description: "A chaotic yet beautiful expression of connectivity, visualizing network traffic as liquid wireframes. Part of the 'Flow' collection.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
+            { id: 3, title: "Minimalist Grid", category: "Data Visualization", tags: ["#LiDAR", "#Monochrome", "#Clean"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Data+Visualization", description: "A clean, responsive visualization of sensor data. The grid represents data points recorded over a 24-hour period.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
+            { id: 4, title: "Geometric Abstraction", category: "Figurative Particles", tags: ["#Music", "#Aura", "#Synth"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Geometric+Abstraction", description: "Artwork generated by feeding musical frequency data into a geometric algorithm. It changes form based on the last recorded sound input.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
+            { id: 5, title: "Blue and Gold Swirl", category: "Digital Flora", tags: ["#Neon", "#Organic", "#Growth"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Digital+Flora", description: "A simulation of digital organic growth, where the swirl patterns are dictated by L-systems. Represents a seed for future bio-digital creations.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
+            { id: 6, title: "Sphere in Darkness", category: "3D Modeling", tags: ["#Sculpture", "#Hollow", "#Void"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=3D+Modeling", description: "A study in negative space and volumetric light. The sphere is a hollow vessel, symbolizing untapped potential within the network.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
+            { id: 7, title: "Digital Ocean", category: "Abstract 3D", tags: ["#Planets", "#Rings", "#Water"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Abstract+3D", description: "Rendering of an abstract planetary body composed entirely of undulating digital waves. It serves as an archive for water-themed generative art.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
+            { id: 8, title: "Red Web Structure", category: "Data Visualization", tags: ["#Code", "#Network", "#Chaos"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Network+Data", description: "A visualization of chaotic network failure points, highlighting areas of high stress and latency in a vibrant red hue.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
+            { id: 9, title: "Complex Pattern", category: "Digital Painting", tags: ["#Retro", "#Vapor", "#Glitch"], color: randomGrayscaleColor(TEMP_P5_MOCK), url: "https://www.google.com/search?q=Digital+Painting", description: "An intricate pattern that mimics old-school vector art with digital decay effects. The core pattern evolves daily.", image_path: randomPlaceholderUrl(TEMP_P5_MOCK) },
         ];
         
         // Edges define the connections between the artworks (node IDs)
@@ -179,6 +199,8 @@
         const MAX_DISTANCE_FROM_CENTER = 400; 
         const CLICK_THRESHOLD = 5; 
         const STAR_COUNT = 1200; 
+        const Z_DEPTH_RANGE = 1000; 
+        const Z_FOCAL_LENGTH = 1.5; 
 
         let nodes = [];
         let stars = [];
@@ -188,13 +210,18 @@
         let currentScale = 1.0; 
         let viewOffset; 
         let currentFilter = 'all'; 
+        let currentProjectUrl = ''; 
 
-        // Variables for Drag functionality
+        // Variables for Drag/Touch functionality
         let draggedNode = null;
         let dragOffsetX = 0;
         let dragOffsetY = 0;
         let initialClickX = 0;
         let initialClickY = 0;
+        
+        // Variables for Pinch-to-Zoom
+        let isPinching = false;
+        let previousTouchDistance = 0;
         
         function getRandomStyle(p) {
             const styleType = p.random(['solid', 'dotted', 'dashed']);
@@ -202,12 +229,37 @@
             const speed = p.random(-0.3, -0.6); 
             return { type: styleType, weight, speed };
         }
+        
+        // Generates a random monochrome p5.Graphics texture locally
+        function createMonochromeTexture(p, text) {
+            const w = 150;
+            const h = 100;
+            const g = p.createGraphics(w, h);
+            
+            g.colorMode(p.RGB, 255);
+            g.background(p.random(5, 30)); 
+            
+            for(let i = 0; i < 50; i++) {
+                g.noStroke();
+                g.fill(p.random(150, 255), p.random(100, 200)); 
+                g.ellipse(g.random(w), g.random(h), g.random(5, 15), g.random(5, 15));
+            }
+            
+            g.textAlign(p.CENTER, p.CENTER);
+            g.textSize(12);
+            g.textFont('Inter'); 
+            g.fill(255, 200); 
+            const textureText = text.toUpperCase().split('-')[0].trim();
+            g.text(textureText, w / 2, h / 2);
+            
+            return g;
+        }
 
 
         // --- 3. NODE CLASS (Stores Data) ---
 
         class Node {
-            constructor(data, x, y) {
+            constructor(data, x, y, z) {
                 this.id = data.id;
                 this.title = data.title;
                 this.category = data.category;
@@ -215,11 +267,18 @@
                 this.color = data.color;
                 this.url = data.url; 
                 this.image_path = data.image_path; 
-                this.imageObject = null; // To store the p5.Image object
+                this.description = data.description; 
+                
+                this.textureBuffer = null; 
                 
                 this.pos = p5Instance.createVector(x, y); 
                 this.vel = p5Instance.createVector(0, 0); 
                 this.acc = p5Instance.createVector(0, 0); 
+                
+                this.z = z; 
+                this.velZ = p5Instance.random(-0.05, 0.05);
+                this.accZ = 0;
+                this.zOscillationSpeed = p5Instance.random(0.01, 0.03);
                 
                 this.baseSize = p5Instance.random(35, 65);
                 this.size = this.baseSize; 
@@ -261,9 +320,17 @@
 
             update() {
                 if (!this.isDragging) {
+                    // 2D Movement
                     this.vel.add(this.acc);
                     this.vel.mult(0.999999); 
                     this.pos.add(this.vel);
+
+                    // 3D Movement (Subtle Z-oscillation)
+                    this.accZ = p5Instance.sin(p5Instance.frameCount * this.zOscillationSpeed) * p5Instance.random(0.0001, 0.0005);
+                    this.velZ += this.accZ;
+                    this.velZ *= 0.999; 
+                    this.z += this.velZ;
+                    this.z = p5Instance.constrain(this.z, 10, Z_DEPTH_RANGE - 10); 
                 }
 
                 const oscillation = p5Instance.sin((p5Instance.frameCount * this.sizeOscillationSpeed) + this.sizePhase) * this.sizeOscillationAmount;
@@ -272,62 +339,54 @@
 
             display(isHovered) {
                 p5Instance.ellipseMode(p5Instance.CENTER);
-                const currentSize = this.size;
-                const radius = currentSize / 2;
+
+                const perspectiveScale = p5Instance.map(this.z, 0, Z_DEPTH_RANGE, Z_FOCAL_LENGTH, 0.5); 
+                const finalSize = this.size * perspectiveScale;
+                const radius = finalSize / 2;
+                const opacity = p5Instance.map(this.z, 0, Z_DEPTH_RANGE, 255, 100); 
 
                 p5Instance.colorMode(p5Instance.RGB, 255); 
                 const baseColor = p5Instance.color(this.color); 
 
-                // Subtle brightness pulse (0-30 max change)
                 const pulse = p5Instance.map(p5Instance.sin(p5Instance.frameCount * 0.1), -1, 1, 0, 30);
-                
-                // Get base brightness (gray shade) and apply pulse
                 const baseBrightness = p5Instance.red(baseColor);
                 const dynamicBrightness = p5Instance.constrain(baseBrightness + pulse, 50, 255); 
-                
-                const mainColor = p5Instance.color(dynamicBrightness);
+                const mainColor = p5Instance.color(dynamicBrightness, opacity); 
 
 
                 p5Instance.push();
                 p5Instance.translate(this.pos.x, this.pos.y);
 
-                // --- 1. Draw the "World" image inside the planet sphere (Clipped) ---
-                if (this.imageObject && this.imageObject.width > 0) {
+                // --- 1. Draw the "World" image (local texture) inside the planet sphere (Clipped) ---
+                if (this.textureBuffer) { 
                     
-                    // Save drawing context state before clipping
                     p5Instance.drawingContext.save();
-                    
-                    // Create a circular clip path
                     p5Instance.drawingContext.beginPath();
                     p5Instance.drawingContext.arc(0, 0, radius, 0, p5Instance.TWO_PI);
                     p5Instance.drawingContext.clip();
 
                     p5Instance.imageMode(p5Instance.CENTER);
+                    p5Instance.image(this.textureBuffer, 0, 0, finalSize, finalSize); 
                     
-                    // Draw the image, scaled to the sphere size
-                    p5Instance.image(this.imageObject, 0, 0, currentSize, currentSize); 
-                    
-                    // Restore the drawing context to remove the clip path for subsequent drawing
                     p5Instance.drawingContext.restore();
                 } else {
-                    // Fallback: Draw the main planet circle (solid gray)
                     p5Instance.noStroke();
                     p5Instance.fill(mainColor);
-                    p5Instance.ellipse(0, 0, currentSize, currentSize);
+                    p5Instance.ellipse(0, 0, finalSize, finalSize); 
                 }
                 
-                // --- 2. Add Planet-like Shading (Radial Gradient) over the image/fallback ---
+                // --- 2. Add Planet-like Shading (Radial Gradient) ---
                 const gradient = p5Instance.drawingContext.createRadialGradient(
-                    -radius / 3, -radius / 3, radius * 0.1, // Inner circle (light source offset)
-                    -radius / 3, -radius / 3, radius * 1.2   // Outer circle (spread)
+                    -radius / 3, -radius / 3, radius * 0.1, 
+                    -radius / 3, -radius / 3, radius * 1.2   
                 );
 
-                // Highlight color (brighter than main)
-                gradient.addColorStop(0, `rgba(255, 255, 255, 0.4)`); 
-                // Mid-tone (main color)
-                gradient.addColorStop(0.7, `rgba(${dynamicBrightness}, ${dynamicBrightness}, ${dynamicBrightness}, 0.1)`); 
-                // Shadow color (darker tone)
-                gradient.addColorStop(1, `rgba(0, 0, 0, 0.4)`); 
+                const highlightOpacity = p5Instance.map(opacity, 100, 255, 0.1, 0.4);
+                const shadowOpacity = p5Instance.map(opacity, 100, 255, 0.2, 0.4);
+
+                gradient.addColorStop(0, `rgba(255, 255, 255, ${highlightOpacity})`); 
+                gradient.addColorStop(0.7, `rgba(${dynamicBrightness}, ${dynamicBrightness}, ${dynamicBrightness}, ${highlightOpacity / 4})`); 
+                gradient.addColorStop(1, `rgba(0, 0, 0, ${shadowOpacity})`); 
 
                 p5Instance.drawingContext.fillStyle = gradient;
                 p5Instance.drawingContext.beginPath();
@@ -337,27 +396,26 @@
                 
                 // --- 3. Draw a subtle edge glow/border ---
                 p5Instance.noFill();
-                p5Instance.stroke(255, 100); 
+                p5Instance.stroke(255, opacity); 
                 p5Instance.strokeWeight(0.5 / currentScale); 
-                p5Instance.ellipse(0, 0, currentSize, currentSize);
+                p5Instance.ellipse(0, 0, finalSize, finalSize); 
 
-                p5Instance.pop(); // End translation
+                p5Instance.pop(); 
 
                 // --- 4. Draw Interaction Highlight ---
-                // Draw highlight if either dragging OR hovered
                 if (this.isDragging || isHovered) {
                     p5Instance.noFill();
                     
-                    // Solid white and thick when dragging, translucent and thin when hovering
                     let highlightAlpha = this.isDragging ? 255 : 150; 
                     let highlightWeight = this.isDragging ? 3 / currentScale : 1.5 / currentScale; 
 
                     p5Instance.stroke(255, highlightAlpha); 
                     p5Instance.strokeWeight(highlightWeight); 
                     
-                    // Draw the highlight circle around the node
-                    p5Instance.ellipse(this.pos.x, this.pos.y, currentSize * 1.15, currentSize * 1.15);
+                    p5Instance.ellipse(this.pos.x, this.pos.y, finalSize * 1.15, finalSize * 1.15); 
                 }
+                
+                return finalSize;
             }
         }
 
@@ -373,11 +431,10 @@
                 p.cursor(p.HAND); 
                 p.colorMode(p.RGB, 255); 
                 p.fill(255);
-                p.stroke(255); // Global stroke setting
+                p.stroke(255); 
 
                 viewOffset = p.createVector(p.width / 2, p.height / 2);
 
-                // Initialize Node objects and load images
                 const center = p.createVector(p.width / 2, p.height / 2);
                 const baseRadius = p.min(p.width, p.height) * 0.3;
                 const totalNodes = ARTWORKS.length;
@@ -393,17 +450,12 @@
                     const radius = baseRadius + p.random(-baseRadius * 0.1, baseRadius * 0.1); 
                     const x = center.x + radius * p.cos(offsetAngle + clusterOffset);
                     const y = center.y + radius * p.sin(offsetAngle + clusterOffset);
+                    
+                    const z = p.random(10, Z_DEPTH_RANGE - 10); 
 
-                    const newNode = new Node(data, x, y);
-
-                    // Load the image asynchronously
-                    newNode.imageObject = p.loadImage(data.image_path, 
-                        // Success callback: Do nothing, it's drawn in display
-                        () => {},
-                        // Error callback: Log the error and set object to null so fallback drawing is used
-                        (err) => { console.error(`Failed to load image for ${data.title}`, err); newNode.imageObject = null; }
-                    );
-
+                    const newNode = new Node(data, x, y, z);
+                    newNode.textureBuffer = createMonochromeTexture(p, data.title);
+                    
                     return newNode; 
                 });
 
@@ -433,6 +485,7 @@
             };
 
             p.draw = () => {
+                
                 p.background(0); 
                 
                 // --- 0. Draw Point Cloud / Starfield (Background) ---
@@ -469,7 +522,14 @@
                 p.scale(currentScale); 
                 p.translate(-viewOffset.x, -viewOffset.y); 
 
-                // --- A. Draw Edges (Connections) ---
+                for (let node of nodes) {
+                    node.applyForces(); 
+                    node.update();      
+                }
+                
+                const sortedNodes = nodes.slice().sort((a, b) => b.z - a.z); 
+
+                // --- 3. Draw Edges (Connections) ---
                 for (let i = 0; i < EDGES.length; i++) {
                     let style = edgeStyles[i];
                     
@@ -514,33 +574,38 @@
                     }
                 }
                 
-                // --- B. Update and Draw Nodes & Titles ---
+                // --- 4. Node Drawing & Hover Detection (Far-to-Near) ---
                 const unscaledX = (p.mouseX - viewOffset.x) / currentScale + viewOffset.x;
                 const unscaledY = (p.mouseY - viewOffset.y) / currentScale + viewOffset.y;
+                let hoveredNode = null;
+
+                for (let i = sortedNodes.length - 1; i >= 0; i--) { 
+                    let node = sortedNodes[i];
+                    if (currentFilter === 'all' || node.category === currentFilter) {
+                        const perspectiveScale = p.map(node.z, 0, Z_DEPTH_RANGE, Z_FOCAL_LENGTH, 0.5);
+                        const finalSize = node.size * perspectiveScale;
+
+                        if (p.dist(node.pos.x, node.pos.y, unscaledX, unscaledY) < finalSize / 2) { 
+                            hoveredNode = node;
+                            break; 
+                        }
+                    }
+                }
 
                 p.fill(255, 200);
                 p.textSize(10 / currentScale); 
                 p.textAlign(p.CENTER, p.BOTTOM);
-
-                for (let node of nodes) {
+                
+                for (let node of sortedNodes) {
                     const isFiltered = currentFilter === 'all' || node.category === currentFilter;
 
                     if (isFiltered) {
-                        // Determine hover state for the current node
-                        const isHovered = p.dist(node.pos.x, node.pos.y, unscaledX, unscaledY) < node.size / 2 * 1.5;
-
-                        node.applyForces(); 
-                        node.update();      
-                        node.display(isHovered); 
+                        const isHovered = hoveredNode === node;
+                        const finalSize = node.display(isHovered); 
                         
-                        // Draw Permanent Title in pure white (not affected by highlight logic)
-                        p.noStroke(); // MANDATORY: Disable stroke before drawing text
+                        p.noStroke(); 
                         p.fill(255); 
-                        p.text(node.title, node.pos.x, node.pos.y + (node.size / 2) + (20 / currentScale)); 
-                    } else {
-                        // Still update unfiltered nodes for physics simulation, but don't draw
-                        node.applyForces(); 
-                        node.update();
+                        p.text(node.title, node.pos.x, node.pos.y + (finalSize / 2) + (20 / currentScale)); 
                     }
                 }
                 
@@ -552,12 +617,9 @@
                 viewOffset = p.createVector(p.width / 2, p.height / 2);
             }
 
-            // --- 5. INTERACTION LOGIC ---
+            // --- 5. INTERACTION LOGIC (Mouse/Single-Touch) ---
 
             p.mouseWheel = (event) => {
-                if (!document.getElementById('artwork-modal').classList.contains('hidden')) {
-                    return false;
-                }
                 const zoomRate = 0.1;
                 let newScale = event.delta < 0 ? currentScale - zoomRate : currentScale + zoomRate;
                 currentScale = p.constrain(newScale, 0.5, 5.0); 
@@ -565,22 +627,26 @@
             };
             
             p.mousePressed = () => {
-                if (!document.getElementById('artwork-modal').classList.contains('hidden')) {
-                    return;
-                }
+                // If the modal is open OR we are pinching, ignore clicks on the canvas
+                if (!document.getElementById('projectModal').classList.contains('hidden') || isPinching) return; 
 
+                // Use p.mouseX/Y, which p5 maps to the first touch point on mobile
                 initialClickX = p.mouseX;
                 initialClickY = p.mouseY;
 
                 const unscaledX = (p.mouseX - viewOffset.x) / currentScale + viewOffset.x;
                 const unscaledY = (p.mouseY - viewOffset.y) / currentScale + viewOffset.y;
+                
+                const clickableNodes = nodes.slice().sort((a, b) => a.z - b.z); 
 
-                for (let node of nodes) {
+                for (let node of clickableNodes) {
                     if (currentFilter === 'all' || node.category === currentFilter) {
-                        if (p.dist(node.pos.x, node.pos.y, unscaledX, unscaledY) < node.size / 2 * 1.5) {
+                        const perspectiveScale = p.map(node.z, 0, Z_DEPTH_RANGE, Z_FOCAL_LENGTH, 0.5);
+                        const finalSize = node.size * perspectiveScale;
+
+                        if (p.dist(node.pos.x, node.pos.y, unscaledX, unscaledY) < finalSize / 2) { 
                             draggedNode = node;
                             draggedNode.isDragging = true;
-                            // Set velocity to zero immediately on grab for stable start
                             draggedNode.vel.mult(0); 
                             dragOffsetX = node.pos.x - unscaledX;
                             dragOffsetY = node.pos.y - unscaledY;
@@ -591,6 +657,8 @@
             }
 
             p.mouseDragged = () => {
+                if (isPinching) return; // Important: Block single-touch drag during pinch-zoom
+                
                 if (draggedNode) {
                     const unscaledX = (p.mouseX - viewOffset.x) / currentScale + viewOffset.x;
                     const unscaledY = (p.mouseY - viewOffset.y) / currentScale + viewOffset.y;
@@ -598,7 +666,6 @@
                     draggedNode.pos.x = unscaledX + dragOffsetX;
                     draggedNode.pos.y = unscaledY + dragOffsetY;
                 } else {
-                     // Pan the entire view if not dragging a node
                     viewOffset.x += p.mouseX - p.pmouseX;
                     viewOffset.y += p.mouseY - p.pmouseY;
                 }
@@ -606,13 +673,14 @@
 
             p.mouseReleased = () => {
                 if (draggedNode) {
+                    // Check if this was a quick tap or a drag
                     const totalMovement = p.dist(initialClickX, initialClickY, p.mouseX, p.mouseY);
 
                     if (totalMovement < CLICK_THRESHOLD) {
-                        openModal(draggedNode);
+                        // This was a tap/click
+                        showProjectModal(draggedNode); 
                     }
                     
-                    // Add a slight release impulse to make it feel natural
                     draggedNode.vel.x = (p.mouseX - p.pmouseX) * 0.1;
                     draggedNode.vel.y = (p.mouseY - p.pmouseY) * 0.1;
                     
@@ -620,46 +688,110 @@
                     draggedNode = null;
                 }
             }
+            
+            // --- 6. TOUCH GESTURE LOGIC (Multi-Touch for Pinch Zoom) ---
+
+            p.touchMoved = () => {
+                if (document.getElementById('projectModal').classList.contains('hidden') && p.touches.length === 2) {
+                    // Two fingers detected: Start/Continue Pinch-to-Zoom
+                    isPinching = true;
+                    
+                    const currentTouchDistance = p.dist(p.touches[0].x, p.touches[0].y, p.touches[1].x, p.touches[1].y);
+
+                    if (previousTouchDistance > 0) {
+                        const distanceRatio = currentTouchDistance / previousTouchDistance;
+                        let newScale = currentScale * distanceRatio;
+                        currentScale = p.constrain(newScale, 0.5, 5.0);
+                    }
+                    
+                    previousTouchDistance = currentTouchDistance;
+                    return false; // Suppress default browser zoom/scroll
+                }
+                
+                // If 1 touch is active, we let mouseDragged handle it, but still block default scroll
+                if (p.touches.length > 0) {
+                    return false; 
+                }
+                
+                // If 0 touches, let default behavior happen
+                return true; 
+            }
+            
+            p.touchEnded = () => {
+                // Clear state when fingers are lifted
+                isPinching = false;
+                previousTouchDistance = 0;
+                
+                // We rely on p.mouseReleased to handle the click detection and node release logic
+                return false; // Suppress default browser actions
+            }
         };
 
-        // --- 6. MODAL & DROPDOWN LOGIC (HTML/JS) ---
+        // --- 7. MODAL & DROPDOWN LOGIC (HTML/JS) ---
         
+        const projectModal = document.getElementById('projectModal');
+        const modalDetailsDiv = document.getElementById('modal-project-details');
+        const actionMessage = document.getElementById('actionMessage');
+        const fullProjectBtn = document.getElementById('fullProjectBtn');
+
+
+        function showProjectModal(node) {
+            // Store the URL for the 'View Full Project' button
+            currentProjectUrl = node.url; 
+            actionMessage.classList.add('hidden'); // Reset message
+            
+            // Populate the modal content
+            modalDetailsDiv.innerHTML = `
+                <header>
+                    <h3 class="text-3xl font-extrabold text-white mb-1" id="modal-title">${node.title}</h3>
+                    <p class="text-sm font-medium uppercase tracking-wider text-indigo-400">${node.category}</p>
+                </header>
+                
+                <!-- Image Preview -->
+                <div class="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden shadow-xl mt-4">
+                    <img src="${node.image_path}" alt="${node.title}" class="modal-card-image w-full object-cover" 
+                         onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Project+Visual+Placeholder';">
+                    <div class="p-4">
+                         <p class="text-gray-400 text-sm italic">${node.description}</p>
+                    </div>
+                </div>
+
+                <!-- Tags and Color -->
+                <div class="flex flex-wrap gap-2 pt-2">
+                    ${node.tags.map(tag => `<span class="bg-gray-800 text-gray-300 text-xs font-semibold px-3 py-1 rounded-full border border-gray-700">${tag}</span>`).join('')}
+                    <div class="flex items-center space-x-2 text-sm text-gray-300">
+                        <span class="w-3 h-3 rounded-full border border-gray-500" style="background-color: ${node.color};"></span>
+                        <span class="font-mono text-xs">${node.color}</span>
+                    </div>
+                </div>
+            `;
+            
+            // Show the modal and prevent background scrolling
+            projectModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden'; 
+        }
+
+        function closeProjectModal() {
+            projectModal.classList.add('hidden');
+            document.body.style.overflow = ''; // Restore background scrolling
+        }
+        
+        function handleFullProjectClick() {
+            // Simulate navigating to the full project page
+            actionMessage.textContent = `Navigating to ${currentProjectUrl}... (Closing in 2s)`;
+            actionMessage.classList.remove('hidden');
+            
+            // In a real app, this would be: window.open(currentProjectUrl, '_blank');
+            
+            setTimeout(() => {
+                closeProjectModal();
+            }, 2000); 
+        }
+
         function setFilter(filterKey) {
             currentFilter = filterKey;
         }
 
-        function openModal(node) {
-            const modal = document.getElementById('artwork-modal');
-            document.getElementById('modal-title').textContent = node.title;
-            document.getElementById('modal-category').textContent = node.category;
-            
-            // Note: The modal image uses the same image_path/placeholder as the node's internal "world"
-            document.getElementById('modal-image-container').innerHTML = `
-                <!-- Image source remains, but the surrounding UI is B&W -->
-                <img src="${node.image_path}" alt="${node.title}" class="w-full h-auto object-cover rounded-lg block h-48" onerror="this.onerror=null;this.src='https://placehold.co/600x200/4B5563/FFFFFF?text=Image+Not+Found!+Check+Path';" />
-            `;
-
-            document.getElementById('modal-content').innerHTML = `
-                <p class="text-gray-400 mb-4">This piece, **${node.title}** (Category: ${node.category}), is a vital node in our creative network, linking works related to ${node.tags.join(', ')}. **You can replace this paragraph with your detailed description or notes about the artwork.**</p>
-                <div class="mt-6">
-                    <h3 class="text-lg font-bold text-white mb-2">Related Tags:</h3>
-                    <div class="flex flex-wrap gap-2">
-                        <!-- Tags: Gray background, Gray text -->
-                        <span class="bg-gray-700/50 text-gray-300 text-xs font-semibold px-3 py-1 rounded-full">Planet Node</span>
-                        ${node.tags.map(tag => `<span class="bg-gray-700/50 text-gray-300 text-xs font-semibold px-3 py-1 rounded-full">${tag}</span>`).join('')}
-                    </div>
-                </div>
-                <!-- Button: White background, Black text, Gray hover -->
-                <a href="${node.url}" target="_blank" class="mt-6 inline-block w-full text-center px-4 py-3 bg-white hover:bg-gray-200 text-black font-semibold rounded-lg transition duration-200 shadow-lg">View External Source</a>
-            `;
-            
-            modal.classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('artwork-modal').classList.add('hidden');
-        }
-        
         // Initialization on window load
         window.onload = () => {
              // 1. Initialize p5 sketch
@@ -678,17 +810,15 @@
              // Set initial filter and attach listener
              setFilter('all');
              categoryFilter.addEventListener('change', (e) => setFilter(e.target.value));
-
-             // 3. Setup Modal handlers
-             document.getElementById('close-modal-btn').addEventListener('click', closeModal);
-             document.getElementById('artwork-modal').addEventListener('click', (e) => {
-                if (e.target.classList.contains('modal-overlay')) {
-                    closeModal();
-                }
+             
+             // Optional: Close modal when Escape key is pressed
+             document.addEventListener('keydown', (e) => {
+                 if (e.key === 'Escape' && !projectModal.classList.contains('hidden')) {
+                     closeProjectModal();
+                 }
              });
         };
 
     </script>
 </body>
 </html>
-
