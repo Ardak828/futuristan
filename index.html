@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>futuristan</title>
+    <!-- CRITICAL: Title is now permanently set to 'futuristan' -->
+    <title>futuristan</title> 
     <!-- Load Tailwind CSS for modern styling of the surrounding elements -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -11,7 +12,6 @@
         body {
             font-family: 'Inter', sans-serif;
             margin: 0;
-            /* Allow scrolling only if the modal is closed */
             overflow: auto; 
             background-color: #000000; 
             color: #ffffff;
@@ -19,16 +19,16 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
+            /* Added to help prevent the 300ms delay */
+            touch-action: manipulation; 
         }
         
-        /* Main application container */
         #app-container {
             width: 100%;
             height: 100%;
             position: relative;
         }
 
-        /* Container for the p5.js visualization */
         #p5-canvas-container {
             position: absolute;
             top: 0;
@@ -36,16 +36,12 @@
             width: 100%;
             height: 100%;
             z-index: 10; 
-            /* This ensures the canvas fills the whole screen */
         }
         
-        /* Navigation elements (high Z-index to appear over canvas) */
         #nav-container, .instructions-overlay {
             z-index: 100; 
-            /* Higher than canvas (z-index: 10) */
         }
 
-        /* Styling for the dropdown menu */
         #category-filter {
             -webkit-appearance: none;
             -moz-appearance: none;
@@ -58,13 +54,11 @@
             cursor: pointer;
         }
         
-        /* Style for the project card image in the modal */
         .modal-card-image {
             height: 200px;
             object-fit: cover;
         }
 
-        /* Fixed body overflow when modal is open */
         .modal-open {
             overflow: hidden;
         }
@@ -78,7 +72,6 @@
         <div id="p5-canvas-container"></div>
     
         <!-- Dropdown Navigation Menu (Top Left) -->
-        <!-- Z-INDEX 100 ensures this sits above the canvas and is tappable -->
         <div id="nav-container" class="fixed top-4 left-4 z-[100]"> 
             <select id="category-filter" class="w-48 sm:w-56 md:w-64 p-3 rounded-xl bg-white/90 border-2 border-black text-black shadow-lg text-sm font-semibold focus:ring-4 focus:ring-black transition cursor-pointer">
                 <!-- Options populated by JS -->
@@ -104,19 +97,18 @@
     </div>
     
     <!-- === PROJECT MODAL/OVERLAY WINDOW === -->
-    <!-- CRITICAL: z-[1000] ensures it appears over ALL other elements -->
     <div id="projectModal" class="hidden fixed inset-0 z-[1000] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         
-        <!-- Modal Backdrop (Clicking outside closes the modal) -->
+        <!-- Modal Backdrop -->
         <div class="fixed inset-0 bg-gray-900 bg-opacity-80 transition-opacity" onclick="closeProjectModal()"></div>
 
-        <!-- Modal Container (Centered and responsive) -->
+        <!-- Modal Container -->
         <div class="flex items-center justify-center min-h-screen p-4 sm:p-6">
             
             <!-- Modal Panel -->
             <div id="modal-content-panel" class="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-xl mx-auto transform transition-all p-6 sm:p-8 text-white">
                 
-                <!-- Close Button (Top Right) -->
+                <!-- Close Button -->
                 <button type="button" 
                         class="absolute top-4 right-4 text-gray-400 hover:text-white focus:outline-none p-1 transition duration-150 rounded-full hover:bg-gray-800 z-[1010]"
                         onclick="closeProjectModal()">
@@ -166,6 +158,7 @@
             return `https://placehold.co/${width}x${height}/${color}/FFFFFF?text=${text}`;
         }
         
+        // Mock p5 object for initial data generation
         const TEMP_P5_MOCK = { random: (min, max) => Math.random() * (max - min) + min }; 
 
         const ARTWORKS = [
@@ -637,19 +630,16 @@
                 if (isModalOpen || isPinching) return; 
                 
                 // Safety Guard: Ignore clicks starting near the external dropdown menu (top-left)
-                // This prevents the canvas from capturing clicks intended for the native HTML select element.
                 if (p.mouseX < 300 && p.mouseY < 100) {
                      return; 
                 }
 
-                // Use p.mouseX/Y, which p5 maps to the first touch point on mobile
                 initialClickX = p.mouseX;
                 initialClickY = p.mouseY;
 
                 const unscaledX = (p.mouseX - viewOffset.x) / currentScale + viewOffset.x;
                 const unscaledY = (p.mouseY - viewOffset.y) / currentScale + viewOffset.y;
                 
-                // Search from the front-most nodes (lowest Z) for the smallest hit area
                 const clickableNodes = nodes.slice().sort((a, b) => a.z - b.z); 
 
                 for (let node of clickableNodes) {
@@ -691,7 +681,7 @@
                     // Check if this was a quick tap (movement less than CLICK_THRESHOLD) or a drag
                     const totalMovement = p.dist(initialClickX, initialClickY, p.mouseX, p.mouseY);
 
-                    // If movement is within the generous threshold, treat it as a tap.
+                    // If movement is within the generous threshold (40 pixels), treat it as a tap.
                     if (totalMovement < CLICK_THRESHOLD) {
                         showProjectModal(draggedNode); 
                     }
@@ -703,7 +693,6 @@
                     draggedNode.isDragging = false;
                     draggedNode = null;
                 }
-                // Don't return false here, as it might block native click events on UI outside the canvas (like the dropdown)
             }
             
             // --- 6. TOUCH GESTURE LOGIC (Multi-Touch for Pinch Zoom) ---
