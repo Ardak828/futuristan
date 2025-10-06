@@ -1,91 +1,939 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>futuristan</title>
-  <style>
-    body { margin: 0; overflow: hidden; }
-    canvas { display: block; }
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>futuristan (Native Canvas)</title> 
+    <!-- Load Tailwind CSS for modern styling of the surrounding elements -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden; /* Hide scrollbars as the canvas fills the viewport */
+            background-color: #000000; 
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            /* CRITICAL: Prevents 300ms tap delay and better handles touch events */
+            touch-action: none; 
+        }
+        
+        #app-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        #galaxyCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: block;
+            z-index: 10; 
+        }
+        
+        #nav-container, .instructions-overlay {
+            z-index: 100; 
+        }
+
+        #category-filter {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23000000'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd' /%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+            cursor: pointer;
+        }
+        
+        .modal-card-image {
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .modal-open {
+            overflow: hidden;
+        }
+    </style>
 </head>
-<body>
-<script>
-// === Scene Setup ===
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.set(0, 0, 5);
+<body class="bg-black">
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+    <div id="app-container">
+        
+        <!-- === CANVAS FOR DRAWING === -->
+        <canvas id="galaxyCanvas"></canvas>
+    
+        <!-- Dropdown Navigation Menu (Top Left) -->
+        <div id="nav-container" class="fixed top-4 left-4 z-[100]"> 
+            <select id="category-filter" class="w-48 sm:w-56 md:w-64 p-3 rounded-xl bg-white/90 border-2 border-black text-black shadow-lg text-sm font-semibold focus:ring-4 focus:ring-black transition cursor:pointer">
+                <!-- Options populated by JS -->
+            </select>
+        </div>
 
-// === Orbit Controls ===
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        <!-- Instructions Overlay (Desktop/Tablet) -->
+        <div class="instructions-overlay fixed top-4 right-4 p-3 bg-white/90 rounded-lg text-sm text-gray-700 border border-black shadow-xl hidden sm:block z-[100]">
+            <p class="font-semibold text-black">Universe Navigation (Desktop/Scroll):</p>
+            <ul class="list-disc list-inside mt-1 space-y-0.5">
+                <li>Scroll to **Zoom** in/out.</li>
+                <li>**Drag** a planet to move it.</li>
+                <li>**Quick-click** a planet to open **Project Modal**.</li>
+            </ul>
+        </div>
+        
+        <!-- Instructions Overlay (Mobile/Touch Guide) -->
+        <div class="instructions-overlay fixed top-4 right-4 p-2 bg-white/90 rounded-lg text-xs text-gray-700 border border-black shadow-xl block sm:hidden z-[100]">
+            <p class="font-semibold text-black mb-1">Touch Guide:</p>
+            <p>1 Finger: **Pan View/Drag Node/Tap**</p>
+            <p>2 Fingers: **Pinch to Zoom**</p>
+        </div>
+    </div>
+    
+    <!-- === PROJECT MODAL/OVERLAY WINDOW === -->
+    <div id="projectModal" class="hidden fixed inset-0 z-[1000] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        
+        <!-- Modal Backdrop -->
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-80 transition-opacity" onclick="closeProjectModal()"></div>
 
-// === Lighting ===
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5, 5, 5);
-scene.add(light);
-scene.add(new THREE.AmbientLight(0x404040, 0.6));
+        <!-- Modal Container -->
+        <div class="flex items-center justify-center min-h-screen p-4 sm:p-6">
+            
+            <!-- Modal Panel -->
+            <div id="modal-content-panel" class="relative bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-sm sm:max-w-xl mx-auto transform transition-all p-6 sm:p-8 text-white">
+                
+                <!-- Close Button -->
+                <button type="button" 
+                        class="absolute top-4 right-4 text-gray-400 hover:text-white focus:outline-none p-1 transition duration-150 rounded-full hover:bg-gray-800 z-[1010]"
+                        onclick="closeProjectModal()">
+                    <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
 
-// === Create Planets (spheres) ===
-const planets = [];
-const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+                <!-- Content will be injected here by JavaScript -->
+                <div id="modal-project-details" class="space-y-4">
+                    <!-- Project details inserted here -->
+                </div>
 
-for (let i = 0; i < 3; i++) {
-  const material = new THREE.MeshStandardMaterial({ color: new THREE.Color(`hsl(${i * 120}, 80%, 50%)`) });
-  const sphere = new THREE.Mesh(geometry, material);
-  sphere.position.x = i * 2 - 2; // spread planets out
-  scene.add(sphere);
-  planets.push(sphere);
-}
+                <!-- Footer Action Button -->
+                <div class="mt-6">
+                    <button type="button" 
+                            id="fullProjectBtn"
+                            class="w-full inline-flex justify-center rounded-xl border border-transparent shadow-md px-4 py-3 bg-indigo-600 text-base font-semibold text-white hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 transition duration-150 sm:text-lg"
+                            onclick="handleFullProjectClick()">
+                        View Full Project
+                    </button>
+                    <p id="actionMessage" class="mt-3 text-center text-sm text-gray-400 hidden">
+                        Simulating navigation to the full project documentation...
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // === CORE DATA AND CONFIGURATION ===
+        
+        const TEMP_MOCK = { random: (min, max) => Math.random() * (max - min) + min }; 
+        const ARTWORKS = [
+            { id: 0, title: "Conceptual Art - Light Form", category: "Conceptual Art", tags: ["#3D", "#SciFi", "#Light"], color: '#A0A0A0', url: "https://www.google.com/search?q=Conceptual+Art", description: "Explores the interplay between perceived reality and light's formless nature. A decentralized ledger of light-based art experiments.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
+            { id: 1, title: "Digital Portrait Study", category: "Digital Sculpture", tags: ["#Particles", "#Monochrome", "#Face"], color: '#B0B0B0', url: "https://www.google.com/search?q=Digital+Sculpture", description: "A dynamic study of the human form rendered entirely through particle systems, constantly shifting and reforming. This node holds the original source code.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
+            { id: 2, title: "Wireframe Structure", category: "Abstract Expressionism", tags: ["#Liquid", "#Vibrant", "#Topology"], color: '#C0C0C0', url: "https://www.google.com/search?q=Abstract+Expressionism", description: "A chaotic yet beautiful expression of connectivity, visualizing network traffic as liquid wireframes. Part of the 'Flow' collection.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
+            { id: 3, title: "Minimalist Grid", category: "Data Visualization", tags: ["#LiDAR", "#Monochrome", "#Clean"], color: '#D0D0D0', url: "https://www.google.com/search?q=Data+Visualization", description: "A clean, responsive visualization of sensor data. The grid represents data points recorded over a 24-hour period.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
+            { id: 4, title: "Geometric Abstraction", category: "Figurative Particles", tags: ["#Music", "#Aura", "#Synth"], color: '#E0E0E0', url: "https://www.google.com/search?q=Geometric+Abstraction", description: "Artwork generated by feeding musical frequency data into a geometric algorithm. It changes form based on the last recorded sound input.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
+            { id: 5, title: "Blue and Gold Swirl", category: "Digital Flora", tags: ["#Neon", "#Organic", "#Growth"], color: '#F0F0F0', url: "https://www.google.com/search?q=Digital+Flora", description: "A simulation of digital organic growth, where the swirl patterns are dictated by L-systems. Represents a seed for future bio-digital creations.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
+            { id: 6, title: "Sphere in Darkness", category: "3D Modeling", tags: ["#Sculpture", "#Hollow", "#Void"], color: '#F8F8F8', url: "https://www.google.com/search?q=3D+Modeling", description: "A study in negative space and volumetric light. The sphere is a hollow vessel, symbolizing untapped potential within the network.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
+            { id: 7, title: "Digital Ocean", category: "Abstract 3D", tags: ["#Planets", "#Rings", "#Water"], color: '#FEFEFE', url: "https://www.google.com/search?q=Abstract+3D", description: "Rendering of an abstract planetary body composed entirely of undulating digital waves. It serves as an archive for water-themed generative art.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
+            { id: 8, title: "Red Web Structure", category: "Data Visualization", tags: ["#Code", "#Network", "#Chaos"], color: '#FFFFFF', url: "https://www.google.com/search?q=Network+Data", description: "A visualization of chaotic network failure points, highlighting areas of high stress and latency in a vibrant red hue.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
+            { id: 9, title: "Complex Pattern", category: "Digital Painting", tags: ["#Retro", "#Vapor", "#Glitch"], color: '#EBEBEB', url: "https://www.google.com/search?q=Digital+Painting", description: "An intricate pattern that mimics old-school vector art with digital decay effects. The core pattern evolves daily.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
+        ];
+        
+        const EDGES = [
+            { from: 0, to: 1 }, { from: 1, to: 5 }, { from: 2, to: 6 }, 
+            { from: 3, to: 7 }, { from: 0, to: 4 }, { from: 6, to: 1 }, 
+            { from: 8, to: 9 }, { from: 9, to: 3 }, { from: 4, to: 8 },
+            { from: 7, to: 2 }, 
+        ];
 
-// === Raycaster for interaction ===
-const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
+        const uniqueCategories = Array.from(new Set(ARTWORKS.map(a => a.category))).sort();
+        const MENU_ITEMS = [
+            { category: 'Show All Projects', filterKey: 'all' }, 
+            ...uniqueCategories.map(c => ({ category: c, filterKey: c }))
+        ];
 
-function checkIntersection(x, y) {
-  // Convert screen coords to NDC (-1 to +1)
-  pointer.x = (x / window.innerWidth) * 2 - 1;
-  pointer.y = -(y / window.innerHeight) * 2 + 1;
-  raycaster.setFromCamera(pointer, camera);
-  const intersects = raycaster.intersectObjects(planets);
-  if (intersects.length > 0) {
-    let planet = intersects[0].object;
-    planet.material.color.set(Math.random() * 0xffffff); // change color on tap
-  }
-}
+        // --- GLOBAL CONFIGS ---
+        const SLIGHT_REPULSION_FORCE = 0.005; 
+        const SLIGHT_CENTERING_FORCE = 0.00000005; 
+        const BOUNDARY_STRENGTH = 0.0005; 
+        const MAX_DISTANCE_FROM_CENTER = 400; 
+        const CLICK_THRESHOLD = 80; // Forgiving mobile tap
+        const STAR_COUNT = 1200; 
+        const Z_DEPTH_RANGE = 1000; 
+        const Z_FOCAL_LENGTH = 1.5; 
+        const PI = Math.PI;
 
-// === Mouse Click ===
-window.addEventListener('click', (event) => {
-  checkIntersection(event.clientX, event.clientY);
-});
+        // --- GLOBAL STATE ---
+        let canvas, ctx, width, height;
+        let nodes = [];
+        let stars = [];
+        let edgeStyles = []; 
+        
+        let currentScale = 1.0; 
+        let viewOffset = {x: 0, y: 0}; 
+        let currentFilter = 'all'; 
+        let currentProjectUrl = ''; 
+        let isModalOpen = false;
 
-// === Touch Tap (Mobile) ===
-window.addEventListener('touchend', (event) => {
-  if (event.changedTouches.length === 1) {
-    const touch = event.changedTouches[0];
-    checkIntersection(touch.clientX, touch.clientY);
-  }
-});
+        let draggedNode = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+        let initialClickX = 0;
+        let initialClickY = 0;
+        
+        let isPinching = false;
+        let isViewPanning = false; // NEW: Tracks single-finger panning of the view
+        let previousTouchDistance = 0;
 
-// === Resize ===
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+        // --- VECTOR UTILITY CLASS (Replaces P5.js vectors) ---
+        class Vector {
+            constructor(x = 0, y = 0) {
+                this.x = x;
+                this.y = y;
+            }
+            add(v) {
+                this.x += v.x;
+                this.y += v.y;
+                return this;
+            }
+            sub(v) {
+                this.x -= v.x;
+                this.y -= v.y;
+                return this;
+            }
+            mult(n) {
+                this.x *= n;
+                this.y *= n;
+                return this;
+            }
+            mag() {
+                return Math.sqrt(this.x * this.x + this.y * this.y);
+            }
+            setMag(n) {
+                const len = this.mag();
+                if (len > 0) {
+                    this.x = (this.x / len) * n;
+                    this.y = (this.y / len) * n;
+                }
+                return this;
+            }
+            static sub(v1, v2) {
+                return new Vector(v1.x - v2.x, v1.y - v2.y);
+            }
+        }
 
-// === Animation Loop ===
-function animate() {
-  requestAnimationFrame(animate);
-  planets.forEach(p => p.rotation.y += 0.01);
-  renderer.render(scene, camera);
-}
-animate();
-</script>
+        // --- NODE CLASS (Stores Data and Physics) ---
+        class Node {
+            constructor(data, x, y, z) {
+                Object.assign(this, data); // Copy all data fields
+                
+                this.pos = new Vector(x, y); 
+                this.vel = new Vector(0, 0); 
+                this.acc = new Vector(0, 0); 
+                
+                this.z = z; 
+                this.velZ = Math.random() * 0.1 - 0.05;
+                this.accZ = 0;
+                this.zOscillationSpeed = Math.random() * 0.02 + 0.01;
+                
+                this.baseSize = Math.random() * 30 + 35;
+                this.size = this.baseSize; 
+                this.sizePhase = Math.random() * 360; 
+                this.sizeOscillationAmount = Math.random() * 1 + 0.5; 
+                this.sizeOscillationSpeed = Math.random() * 1 + 0.5;
+                
+                this.isDragging = false;
+            }
+
+            applyForces() {
+                this.acc.mult(0); 
+                const center = {x: width / 2, y: height / 2};
+
+                for (let other of nodes) {
+                    if (other !== this) {
+                        const force = Vector.sub(this.pos, other.pos);
+                        let distance = force.mag();
+                        const minDistance = (this.size + other.size) / 2;
+                        distance = Math.min(Math.max(distance, minDistance), 150);
+                        let strength = -SLIGHT_REPULSION_FORCE / (distance * distance); 
+                        force.setMag(strength);
+                        this.acc.add(force);
+                    }
+                }
+
+                // Centering force
+                const centerForce = Vector.sub(center, this.pos);
+                centerForce.mult(SLIGHT_CENTERING_FORCE);
+                this.acc.add(centerForce);
+
+                // Boundary force
+                const distToCenter = Math.sqrt(Math.pow(this.pos.x - center.x, 2) + Math.pow(this.pos.y - center.y, 2));
+                if (distToCenter > MAX_DISTANCE_FROM_CENTER) {
+                    const boundaryForce = Vector.sub(center, this.pos);
+                    let strength = BOUNDARY_STRENGTH * (distToCenter - MAX_DISTANCE_FROM_CENTER); 
+                    boundaryForce.setMag(strength);
+                    this.acc.add(boundaryForce);
+                }
+            }
+
+            update(frameCount) {
+                if (!this.isDragging) {
+                    // 2D Movement
+                    this.vel.add(this.acc);
+                    this.vel.mult(0.999999); 
+                    this.pos.add(this.vel);
+
+                    // 3D Movement (Subtle Z-oscillation)
+                    this.accZ = Math.sin(frameCount * this.zOscillationSpeed * 0.05) * (Math.random() * 0.0004 + 0.0001);
+                    this.velZ += this.accZ;
+                    this.velZ *= 0.999; 
+                    this.z += this.velZ;
+                    this.z = Math.min(Math.max(this.z, 10), Z_DEPTH_RANGE - 10); 
+                }
+
+                const oscillation = Math.sin((frameCount * this.sizeOscillationSpeed * 0.05) + (this.sizePhase * PI/180)) * this.sizeOscillationAmount;
+                this.size = this.baseSize + oscillation;
+            }
+
+            getFinalSize() {
+                const perspectiveScale = Z_FOCAL_LENGTH - (this.z / Z_DEPTH_RANGE) * (Z_FOCAL_LENGTH - 0.5); 
+                return this.size * perspectiveScale;
+            }
+            
+            getOpacity() {
+                // Map Z depth to opacity (100 to 255)
+                return 100 + (this.z / Z_DEPTH_RANGE) * 155; 
+            }
+        }
+        
+        // --- DRAWING AND ANIMATION LOOP ---
+
+        let frameCount = 0;
+
+        function drawNode(node, isHovered) {
+            const finalSize = node.getFinalSize();
+            const radius = finalSize / 2;
+            const opacity = node.getOpacity();
+            
+            ctx.save();
+            ctx.translate(node.pos.x, node.pos.y);
+
+            // 1. Draw the Sphere Background (Monochrome Effect)
+            const pulse = 15 * Math.sin(frameCount * 0.01);
+            const dynamicBrightness = Math.min(Math.max(parseInt(node.color.substring(1,3), 16) + pulse, 50), 255);
+            const mainColor = `rgba(${dynamicBrightness}, ${dynamicBrightness}, ${dynamicBrightness}, ${opacity / 255})`; 
+            
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, 2 * PI);
+            ctx.fillStyle = mainColor;
+            ctx.fill();
+
+            // 2. Add Planet-like Shading (Radial Gradient)
+            const gradient = ctx.createRadialGradient(
+                -radius / 3, -radius / 3, radius * 0.1, 
+                -radius / 3, -radius / 3, radius * 1.2   
+            );
+            const highlightOpacity = opacity / 255 * 0.3;
+            const shadowOpacity = opacity / 255 * 0.4;
+
+            gradient.addColorStop(0, `rgba(255, 255, 255, ${highlightOpacity})`); 
+            gradient.addColorStop(0.7, `rgba(${dynamicBrightness}, ${dynamicBrightness}, ${dynamicBrightness}, ${highlightOpacity / 4})`); 
+            gradient.addColorStop(1, `rgba(0, 0, 0, ${shadowOpacity})`); 
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, 2 * PI);
+            ctx.fill();
+
+            // 3. Draw subtle border
+            ctx.strokeStyle = `rgba(255, 255, 255, ${opacity / 255})`; 
+            ctx.lineWidth = 0.5 / currentScale; 
+            ctx.stroke();
+
+            ctx.restore(); 
+
+            // 4. Draw Interaction Highlight
+            if (node.isDragging || isHovered) {
+                let highlightAlpha = node.isDragging ? 255 : 150; 
+                let highlightWeight = node.isDragging ? 3 / currentScale : 1.5 / currentScale; 
+
+                ctx.strokeStyle = `rgba(255, 255, 255, ${highlightAlpha / 255})`; 
+                ctx.lineWidth = highlightWeight;
+                
+                ctx.beginPath();
+                ctx.arc(node.pos.x, node.pos.y, radius * 1.15, 0, 2 * PI); 
+                ctx.stroke();
+            }
+            
+            // 5. Draw Title
+            ctx.fillStyle = 'white'; 
+            ctx.font = `${10 / currentScale}px Inter`; 
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(node.title, node.pos.x, node.pos.y + radius + (20 / currentScale)); 
+        }
+        
+        function drawEdge(nodeA, nodeB, style) {
+            // Check visibility based on current filter
+            const isFiltered = currentFilter === 'all' || 
+                               nodeA.category === currentFilter || 
+                               nodeB.category === currentFilter;
+            if (!isFiltered) return;
+
+            const edgeColor = `rgba(150, 150, 150, 0.78)`; 
+            ctx.strokeStyle = edgeColor;
+            ctx.lineWidth = style.weight / currentScale; 
+            
+            ctx.save();
+
+            // For dashed/dotted lines, we need to manually set the dash pattern
+            if (style.type !== 'solid') {
+                const dashLength = style.type === 'dotted' ? 2 / currentScale : 10 / currentScale;
+                const gapLength = style.type === 'dotted' ? 5 / currentScale : 5 / currentScale;
+                const totalDash = dashLength + gapLength;
+                
+                ctx.setLineDash([dashLength, gapLength]);
+                ctx.lineDashOffset = (frameCount * style.speed) % totalDash;
+            } else {
+                ctx.setLineDash([]);
+                ctx.lineDashOffset = 0;
+            }
+            
+            ctx.beginPath();
+            ctx.moveTo(nodeA.pos.x, nodeA.pos.y);
+            ctx.lineTo(nodeB.pos.x, nodeB.pos.y);
+            ctx.stroke();
+            
+            ctx.restore();
+        }
+
+        function drawStars() {
+            ctx.save();
+            const nodesCenter = {x: width / 2, y: height / 2};
+            const viewDiffX = viewOffset.x - nodesCenter.x;
+            const viewDiffY = viewOffset.y - nodesCenter.y;
+            
+            ctx.fillStyle = 'white';
+            
+            for (let star of stars) {
+                star.x += star.velX; 
+                star.y += star.velY;
+                
+                const x = star.x - viewDiffX * star.parallaxFactor; 
+                const y = star.y - viewDiffY * star.parallaxFactor;
+
+                const fade = Math.sin(Date.now() * 0.0005 * star.parallaxFactor) * 0.5 + 0.5;
+                
+                ctx.globalAlpha = star.alpha / 255;
+                
+                ctx.beginPath();
+                ctx.arc(x + width/2, y + height/2, star.size * fade, 0, 2 * PI);
+                ctx.fill();
+                
+                if (frameCount % 180 === 0) { 
+                   star.velX = Math.random() * 0.04 - 0.02;
+                   star.velY = Math.random() * 0.04 - 0.02;
+                }
+            }
+            ctx.globalAlpha = 1.0;
+            ctx.restore();
+        }
+
+        function gameLoop() {
+            frameCount++;
+            
+            // 1. Clear Canvas and Draw Background
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, width, height);
+            
+            // 2. Draw Stars (always drawn relative to the center)
+            drawStars();
+
+            // 3. Apply View Transformations
+            ctx.save();
+            ctx.translate(viewOffset.x, viewOffset.y); 
+            ctx.scale(currentScale, currentScale); 
+            // We translate back so node positions are relative to the center of the viewport
+            ctx.translate(-viewOffset.x, -viewOffset.y); 
+
+            // 4. Update Physics
+            for (let node of nodes) {
+                node.applyForces(); 
+                node.update(frameCount);      
+            }
+
+            // 5. Update Edge Styles (for animation)
+            for (let style of edgeStyles) {
+                if (frameCount > style.transitionFrame + style.duration) {
+                    Object.assign(style, getRandomStyle()); 
+                    style.transitionFrame = frameCount;
+                    style.duration = Math.random() * 200 + 200; 
+                }
+            }
+
+            // 6. Draw Edges
+            for (let i = 0; i < EDGES.length; i++) {
+                const edge = EDGES[i];
+                const nodeA = nodes.find(n => n.id === edge.from);
+                const nodeB = nodes.find(n => n.id === edge.to);
+                if (nodeA && nodeB) {
+                    drawEdge(nodeA, nodeB, edgeStyles[i]);
+                }
+            }
+            
+            // 7. Find Hovered Node (after transformation is applied)
+            const unscaledX = (mouseX - viewOffset.x) / currentScale + viewOffset.x;
+            const unscaledY = (mouseY - viewOffset.y) / currentScale + viewOffset.y;
+            let hoveredNode = null;
+            
+            // Draw far-to-near, check click/hover near-to-far
+            const sortedNodes = nodes.slice().sort((a, b) => b.z - a.z); 
+            
+            for (let i = sortedNodes.length - 1; i >= 0; i--) { 
+                let node = sortedNodes[i];
+                if (currentFilter === 'all' || node.category === currentFilter) {
+                    const finalSize = node.getFinalSize();
+                    const distance = Math.sqrt(Math.pow(node.pos.x - unscaledX, 2) + Math.pow(node.pos.y - unscaledY, 2));
+
+                    if (distance < finalSize / 2) { 
+                        hoveredNode = node;
+                        break; 
+                    }
+                }
+            }
+            
+            // Set cursor based on interaction state
+            canvas.style.cursor = (draggedNode || hoveredNode || isViewPanning) ? 'pointer' : 'grab';
+
+
+            // 8. Draw Nodes (Far-to-Near Z-order)
+            for (let node of sortedNodes) {
+                if (currentFilter === 'all' || node.category === currentFilter) {
+                    drawNode(node, node === hoveredNode); 
+                }
+            }
+
+            ctx.restore(); // Restore view transformations
+
+            // 9. Loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- INITIALIZATION ---
+
+        function initStars() {
+            for (let i = 0; i < STAR_COUNT; i++) {
+                const radius = Math.random() * Math.max(width, height) * 1.2; 
+                const angle = Math.random() * 2 * PI;
+                stars.push({
+                    x: radius * Math.cos(angle), 
+                    y: radius * Math.sin(angle), 
+                    size: Math.random() * 2 + 1,
+                    alpha: Math.random() * 155 + 100,
+                    parallaxFactor: Math.random() * 0.15 + 0.05, 
+                    velX: Math.random() * 0.02 - 0.01,
+                    velY: Math.random() * 0.02 - 0.01
+                });
+            }
+        }
+
+        function initNodes() {
+            const center = {x: width / 2, y: height / 2};
+            const baseRadius = Math.min(width, height) * 0.3;
+            const totalNodes = ARTWORKS.length;
+            
+            nodes = ARTWORKS.map((data, index) => {
+                let offsetAngle = index * (2 * PI / totalNodes);
+                let clusterOffset = 0;
+                // Add minor offsets for clustering effect
+                if (data.category === "Abstract Expressionism") clusterOffset = PI/6;
+                if (data.category === "3D Modeling") clusterOffset = PI/3;
+                if (data.category === "Data Visualization") clusterOffset = PI/2;
+
+                const radius = baseRadius + (Math.random() * baseRadius * 0.2 - baseRadius * 0.1); 
+                const x = center.x + radius * Math.cos(offsetAngle + clusterOffset);
+                const y = center.y + radius * Math.sin(offsetAngle + clusterOffset);
+                const z = Math.random() * (Z_DEPTH_RANGE - 20) + 10; 
+
+                return new Node(data, x, y, z);
+            });
+            
+            edgeStyles = EDGES.map(() => ({
+                type: ['solid', 'dotted', 'dashed'][Math.floor(Math.random() * 3)],
+                weight: Math.random() * 2.7 + 0.8,
+                speed: Math.random() * -0.3 - 0.3, 
+                transitionFrame: 0,
+                duration: Math.random() * 200 + 200, 
+            }));
+        }
+
+        function getRandomStyle() {
+            return {
+                type: ['solid', 'dotted', 'dashed'][Math.floor(Math.random() * 3)],
+                weight: Math.random() * 2.7 + 0.8,
+                speed: Math.random() * -0.3 - 0.3, 
+            };
+        }
+
+        function setupCanvas() {
+            canvas = document.getElementById('galaxyCanvas');
+            ctx = canvas.getContext('2d');
+            
+            resizeCanvas();
+            
+            viewOffset.x = width / 2;
+            viewOffset.y = height / 2;
+            
+            initStars();
+            initNodes();
+            
+            // Setup Listeners
+            window.addEventListener('resize', resizeCanvas);
+            canvas.addEventListener('wheel', handleMouseWheel);
+            canvas.addEventListener('mousedown', handleMouseDown);
+            canvas.addEventListener('mousemove', handleMouseMove);
+            canvas.addEventListener('mouseup', handleMouseUp);
+
+            canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+            canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+            canvas.addEventListener('touchend', handleTouchEnd);
+
+            // Start the main loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        function resizeCanvas() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            // Recenter the view when resizing
+            viewOffset.x = width / 2;
+            viewOffset.y = height / 2;
+        }
+
+        // --- INTERACTION LOGIC (Translated from P5.js to Native Events) ---
+
+        let mouseX = 0;
+        let mouseY = 0;
+
+        function getMousePos(event) {
+            let rect = canvas.getBoundingClientRect();
+            return {
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top
+            };
+        }
+        
+        function handleMouseWheel(event) {
+            event.preventDefault(); // Prevent default browser zoom/scroll
+            if (isModalOpen) return;
+
+            const zoomRate = 0.1;
+            let newScale = event.deltaY < 0 ? currentScale + zoomRate : currentScale - zoomRate;
+            currentScale = Math.min(Math.max(newScale, 0.5), 5.0); 
+        }
+
+        function handleMouseDown(event) {
+            if (isModalOpen || event.button !== 0) return; // Only left-click
+            
+            initialClickX = event.clientX;
+            initialClickY = event.clientY;
+            
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+
+            const unscaledX = (mouseX - viewOffset.x) / currentScale + viewOffset.x;
+            const unscaledY = (mouseY - viewOffset.y) / currentScale + viewOffset.y;
+            
+            // Check for node collision (near-to-far)
+            const clickableNodes = nodes.slice().sort((a, b) => a.z - b.z); 
+
+            for (let node of clickableNodes) {
+                if (currentFilter === 'all' || node.category === currentFilter) {
+                    const finalSize = node.getFinalSize();
+                    const distance = Math.sqrt(Math.pow(node.pos.x - unscaledX, 2) + Math.pow(node.pos.y - unscaledY, 2));
+
+                    if (distance < finalSize / 2) { 
+                        draggedNode = node;
+                        draggedNode.isDragging = true;
+                        draggedNode.vel.mult(0); 
+                        dragOffsetX = node.pos.x - unscaledX;
+                        dragOffsetY = node.pos.y - unscaledY;
+                        return; 
+                    }
+                }
+            }
+        }
+
+        function handleMouseMove(event) {
+            const prevMouseX = mouseX;
+            const prevMouseY = mouseY;
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+
+            if (isModalOpen) return;
+
+            if (draggedNode) {
+                const unscaledX = (mouseX - viewOffset.x) / currentScale + viewOffset.x;
+                const unscaledY = (mouseY - viewOffset.y) / currentScale + viewOffset.y;
+
+                draggedNode.pos.x = unscaledX + dragOffsetX;
+                draggedNode.pos.y = unscaledY + dragOffsetY;
+            } else if (event.buttons === 1) { // If left button is down for panning (Desktop)
+                viewOffset.x += mouseX - prevMouseX;
+                viewOffset.y += mouseY - prevMouseY;
+            }
+        }
+
+        function handleMouseUp(event) {
+            if (draggedNode) {
+                const totalMovement = Math.sqrt(
+                    Math.pow(initialClickX - event.clientX, 2) + 
+                    Math.pow(initialClickY - event.clientY, 2)
+                );
+
+                if (totalMovement < CLICK_THRESHOLD) {
+                    showProjectModal(draggedNode); 
+                    draggedNode.vel.mult(0); // Stop movement immediately after tap
+                } else {
+                    // Apply velocity for flick effect (using the last known delta)
+                    // event.clientX/Y is the final mouse position on mouseup
+                    // mouseX/Y is the final mouse position from handleMouseMove
+                    // Since mouseX/Y is already updated to event.clientX/Y in this case, 
+                    // we use a simple dampening formula
+                    draggedNode.vel.x = (event.clientX - initialClickX) * 0.02; 
+                    draggedNode.vel.y = (event.clientY - initialClickY) * 0.02;
+                }
+                
+                draggedNode.isDragging = false;
+                draggedNode = null;
+            }
+        }
+        
+        // --- TOUCH INTERACTION LOGIC (Optimized for Mobile) ---
+        
+        function handleTouchStart(event) {
+            if (isModalOpen) return;
+            event.preventDefault(); // CRITICAL: Stop browser scrolling/zooming right away
+
+            // Single Finger (Node Drag or View Pan)
+            if (event.touches.length === 1) {
+                const touch = event.touches[0];
+                initialClickX = touch.clientX;
+                initialClickY = touch.clientY;
+                mouseX = touch.clientX;
+                mouseY = touch.clientY;
+
+                const unscaledX = (mouseX - viewOffset.x) / currentScale + viewOffset.x;
+                const unscaledY = (mouseY - viewOffset.y) / currentScale + viewOffset.y;
+                
+                // Check for node collision (near-to-far)
+                const clickableNodes = nodes.slice().sort((a, b) => a.z - b.z); 
+
+                for (let node of clickableNodes) {
+                    if (currentFilter === 'all' || node.category === currentFilter) {
+                        const finalSize = node.getFinalSize();
+                        const distance = Math.sqrt(Math.pow(node.pos.x - unscaledX, 2) + Math.pow(node.pos.y - unscaledY, 2));
+
+                        if (distance < finalSize / 2) { 
+                            draggedNode = node;
+                            draggedNode.isDragging = true;
+                            draggedNode.vel.mult(0); 
+                            dragOffsetX = node.pos.x - unscaledX;
+                            dragOffsetY = node.pos.y - unscaledY;
+                            isViewPanning = false; // Node found, prioritize dragging
+                            return; 
+                        }
+                    }
+                }
+                
+                // If no node found, start panning the view
+                draggedNode = null;
+                isViewPanning = true;
+                
+            // Two Fingers (Pinch Zoom)
+            } else if (event.touches.length === 2) {
+                isPinching = true;
+                isViewPanning = false;
+                draggedNode = null;
+                previousTouchDistance = Math.hypot(
+                    event.touches[0].clientX - event.touches[1].clientX,
+                    event.touches[0].clientY - event.touches[1].clientY
+                );
+            }
+        }
+
+        function handleTouchMove(event) {
+            if (isModalOpen) return;
+            event.preventDefault(); 
+
+            // Store previous mouse/touch position
+            const prevMouseX = mouseX;
+            const prevMouseY = mouseY;
+            
+            // Update current mouse/touch position
+            const touch = event.touches[0] || event.changedTouches[0];
+            mouseX = touch ? touch.clientX : mouseX;
+            mouseY = touch ? touch.clientY : mouseY;
+
+            if (event.touches.length === 2 && isPinching) {
+                // Pinch Zoom Logic 
+                const currentTouchDistance = Math.hypot(
+                    event.touches[0].clientX - event.touches[1].clientX,
+                    event.touches[0].clientY - event.touches[1].clientY
+                );
+
+                if (previousTouchDistance > 0) {
+                    const distanceRatio = currentTouchDistance / previousTouchDistance;
+                    let newScale = currentScale * distanceRatio;
+                    currentScale = Math.min(Math.max(newScale, 0.5), 5.0);
+                }
+                previousTouchDistance = currentTouchDistance;
+
+            } else if (event.touches.length === 1 && !isPinching) {
+                // Single Touch Action (Node Drag or View Pan)
+                if (draggedNode) {
+                    const unscaledX = (mouseX - viewOffset.x) / currentScale + viewOffset.x;
+                    const unscaledY = (mouseY - viewOffset.y) / currentScale + viewOffset.y;
+    
+                    draggedNode.pos.x = unscaledX + dragOffsetX;
+                    draggedNode.pos.y = unscaledY + dragOffsetY;
+                } else if (isViewPanning) { 
+                    // Panning the view
+                    viewOffset.x += mouseX - prevMouseX;
+                    viewOffset.y += mouseY - prevMouseY;
+                }
+            }
+        }
+
+        function handleTouchEnd(event) {
+            isPinching = false;
+            previousTouchDistance = 0;
+            
+            if (draggedNode) {
+                 // The last coordinates are already in mouseX/mouseY
+                 const totalMovement = Math.sqrt(
+                    Math.pow(initialClickX - mouseX, 2) + 
+                    Math.pow(initialClickY - mouseY, 2)
+                );
+
+                if (totalMovement < CLICK_THRESHOLD) {
+                    showProjectModal(draggedNode); 
+                    draggedNode.vel.mult(0); 
+                } else {
+                    // Apply velocity for flick effect (using total displacement, adjusted)
+                    draggedNode.vel.x = (mouseX - initialClickX) * 0.02; 
+                    draggedNode.vel.y = (mouseY - initialClickY) * 0.02;
+                }
+                
+                draggedNode.isDragging = false;
+                draggedNode = null;
+            }
+            
+            isViewPanning = false; // Reset pan state for next touch
+        }
+
+        // --- MODAL & DROPDOWN LOGIC ---
+        
+        const projectModal = document.getElementById('projectModal');
+        const modalDetailsDiv = document.getElementById('modal-project-details');
+        const actionMessage = document.getElementById('actionMessage');
+
+        function showProjectModal(node) {
+            isModalOpen = true; 
+            document.body.classList.add('modal-open'); 
+            currentProjectUrl = node.url; 
+            actionMessage.classList.add('hidden'); 
+            
+            // Populate the modal content
+            modalDetailsDiv.innerHTML = `
+                <header>
+                    <h3 class="text-3xl font-extrabold text-white mb-1" id="modal-title">${node.title}</h3>
+                    <p class="text-sm font-medium uppercase tracking-wider text-indigo-400">${node.category}</p>
+                </header>
+                
+                <!-- Image Preview -->
+                <div class="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden shadow-xl mt-4">
+                    <img src="${node.image_path}" alt="${node.title}" class="modal-card-image w-full object-cover" 
+                         onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Project+Visual+Placeholder';">
+                    <div class="p-4">
+                         <p class="text-gray-400 text-sm italic">${node.description}</p>
+                    </div>
+                </div>
+
+                <!-- Tags and Color -->
+                <div class="flex flex-wrap gap-2 pt-2">
+                    ${node.tags.map(tag => `<span class="bg-gray-800 text-gray-300 text-xs font-semibold px-3 py-1 rounded-full border border-gray-700">${tag}</span>`).join('')}
+                    <div class="flex items-center space-x-2 text-sm text-gray-300">
+                        <span class="w-3 h-3 rounded-full border border-gray-500" style="background-color: ${node.color};"></span>
+                        <span class="font-mono text-xs">${node.color}</span>
+                    </div>
+                </div>
+            `;
+            
+            projectModal.classList.remove('hidden');
+        }
+
+        function closeProjectModal() {
+            isModalOpen = false; 
+            projectModal.classList.add('hidden');
+            document.body.classList.remove('modal-open'); 
+        }
+        
+        window.closeProjectModal = closeProjectModal; // Expose to global scope for HTML inline click
+
+        function handleFullProjectClick() {
+            actionMessage.textContent = `Navigating to ${currentProjectUrl}... (Closing in 2s)`;
+            actionMessage.classList.remove('hidden');
+            
+            setTimeout(() => {
+                closeProjectModal();
+            }, 2000); 
+        }
+
+        function setFilter(filterKey) {
+            currentFilter = filterKey;
+        }
+
+        // --- Window Load and Setup ---
+        window.onload = () => {
+             // 1. Initialize Canvas and Game Loop
+             setupCanvas();
+             
+             // 2. Setup Dropdown UI
+             const categoryFilter = document.getElementById('category-filter');
+
+             MENU_ITEMS.forEach(item => {
+                 const option = document.createElement('option');
+                 option.value = item.filterKey;
+                 option.textContent = item.category;
+                 categoryFilter.appendChild(option);
+             });
+
+             setFilter('all');
+             categoryFilter.addEventListener('change', (e) => setFilter(e.target.value));
+             
+             document.addEventListener('keydown', (e) => {
+                 if (e.key === 'Escape' && isModalOpen) {
+                     closeProjectModal();
+                 }
+             });
+        };
+    </script>
 </body>
 </html>
