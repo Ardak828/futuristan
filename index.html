@@ -1,254 +1,716 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>futuristan</title>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/controls/OrbitControls.js"></script>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: black;
-      color: white;
-      font-family: 'Inter', sans-serif;
-    }
-    #overlay {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: rgba(0, 0, 0, 0.8);
-      z-index: 50;
-      transition: opacity 0.4s ease;
-    }
-    #overlay.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-  </style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>3D Interactive Art Network</title>
+    <!-- Load Tailwind CSS for modern, utility-first styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for Three.js container and fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;600;800&display=swap');
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+        
+        /* Define CSS Variables for modal/panel consistency */
+        :root {
+            --panel: #111827;
+            --muted: #9ca3af;
+            --accent: #4f46e5;
+        }
+
+        /* Modal specific styles remaining from original, now combined with Tailwind */
+        #projectModal .panel {
+            background: var(--panel);
+        }
+        #projectModal .close-btn {
+             color: var(--muted);
+        }
+        #projectModal .close-btn:hover { 
+            color: #fff; background: rgba(255,255,255,0.03); 
+        }
+        #projectModal .panel h3 {
+            color: #fff;
+        }
+        #projectModal .panel p.category {
+            color: #9aa0ff; /* Purple accent */
+        }
+        .image-card {
+            background: #0f1724;
+            border: 1px solid rgba(255,255,255,0.03);
+        }
+        .tag {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.02);
+        }
+        .color-indicator {
+            color: var(--muted);
+        }
+
+    </style>
+
+    <!-- THREE.js r128 + OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
-
 <body>
-  <!-- Navigation -->
-  <nav class="absolute top-0 left-0 w-full p-4 flex justify-between items-center z-30 bg-black/30 backdrop-blur-sm">
-    <div class="text-xl font-bold tracking-widest">futuristan</div>
-    <div class="space-x-6 text-sm uppercase tracking-wide">
-      <button id="projectsBtn" class="hover:text-gray-400">Projects</button>
+    <!-- Instructions (Tailwind classes applied) -->
+    <div id="instructions" class="fixed top-4 left-1/2 -translate-x-1/2 z-40 bg-white/10 text-gray-300 p-2 rounded-xl font-semibold text-sm backdrop-blur-sm transition-opacity">
+        <div class="font-extrabold text-[#dfe3ff]">3D Network Explorer</div>
+        <div class="text-xs mt-1 text-gray-300">
+            Drag to orbit — Click / Tap a sphere to open details
+        </div>
     </div>
-  </nav>
 
-  <!-- Canvas -->
-  <canvas id="bg"></canvas>
-
-  <!-- Modal Overlay -->
-  <div id="overlay" class="hidden">
-    <div id="modalContent" class="bg-gray-900 p-6 rounded-2xl max-w-lg w-11/12 relative">
-      <button id="closeModal" class="absolute top-3 right-3 text-gray-400 hover:text-white text-xl">&times;</button>
-      <div id="modalDetails"></div>
-      <div class="mt-4 text-right">
-        <a id="openProject" href="#" target="_blank" class="text-blue-400 hover:text-blue-300 text-sm">Open Project →</a>
-      </div>
+    <!-- Filter Menu (Tailwind classes applied) -->
+    <div id="nav-container" class="fixed top-4 left-4 z-40">
+        <select id="category-filter" aria-label="Filter projects"
+            class="p-2 rounded-xl border border-white/10 bg-white/5 text-white font-bold text-sm min-w-[12rem] focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+        </select>
     </div>
-  </div>
 
-  <script>
-    let scene, camera, renderer, controls;
-    let spheres = [];
-    let isModalOpen = false;
-    let currentProjectUrl = null;
+    <div id="label-container" style="pointer-events:none;"></div>
 
-    const projectModal = document.getElementById('overlay');
-    const modalDetailsDiv = document.getElementById('modalDetails');
-    const openProjectBtn = document.getElementById('openProject');
-    const closeModalBtn = document.getElementById('closeModal');
-    const textureLoader = new THREE.TextureLoader();
+    <!-- Modal (Tailwind classes applied) -->
+    <div id="projectModal" role="dialog" aria-modal="true" aria-labelledby="modal-title"
+        class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto hidden">
+        <div class="backdrop absolute inset-0 bg-gray-900/80" id="modalBackdrop"></div>
+        <div class="panel relative w-11/12 max-w-xl rounded-xl border border-white/5 shadow-2xl p-6 text-gray-100 m-8 z-50" role="document">
+            
+            <!-- Close Button -->
+            <button class="close-btn absolute top-3 right-3 bg-transparent border-none p-1.5 rounded-full cursor-pointer hover:text-white" id="modalCloseBtn" aria-label="Close modal">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
 
-    const projects = [
-      {
-        title: "Neo Tengri",
-        category: "VR / Speculative",
-        description: "A mythological exploration in virtual reality, inspired by Tengriism and ancient symbols.",
-        tags: ["VR", "Mythology", "Interactive"],
-        color: "#7cc7f6",
-        image_path: "https://threejs.org/examples/textures/earth_atmos_2048.jpg",
-        url: "https://ardak828.github.io/neotengri/"
-      },
-      {
-        title: "Dreamscapes",
-        category: "AI / Installation",
-        description: "Visualized dreams through brainwave data transformed into moving imagery.",
-        tags: ["AI", "Installation", "Data Art"],
-        color: "#f6b07c",
-        image_path: "https://threejs.org/examples/textures/planets/jupiter.jpg",
-        url: "#"
-      },
-      {
-        title: "Freedom",
-        category: "Video / Interactive",
-        description: "A digital performance exploring notions of freedom and cultural symbolism.",
-        tags: ["Performance", "3D", "Motion"],
-        color: "#7cf6a5",
-        image_path: "https://threejs.org/examples/textures/planets/mars_1k_color.jpg",
-        url: "#"
-      }
+            <div id="modal-project-details" aria-live="polite">
+                <!-- injected content -->
+            </div>
+
+            <div class="modal-footer mt-4">
+                <button id="fullProjectBtn" class="w-full py-3 rounded-xl border-none cursor-pointer font-extrabold text-base bg-indigo-600 text-white hover:bg-indigo-700 transition">
+                    View Full Project
+                </button>
+                <p id="actionMessage" class="mt-2 text-gray-400 text-sm hidden">Opening project...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* ========== CORE DATA (unchanged semantic structure) ========== */
+    const ARTWORKS = [
+        { id: 0, title: "Conceptual Art - Light Form", category: "Conceptual Art", tags: ["#3D", "#SciFi", "#Light"], color: '#A0A0A0', url: "https://www.google.com/search?q=Conceptual+Art", description: "Explores the interplay between perceived reality and light's formless nature. A decentralized ledger of light-based art experiments.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
+        { id: 1, title: "Digital Portrait Study", category: "Digital Sculpture", tags: ["#Particles", "#Monochrome", "#Face"], color: '#B0B0B0', url: "https://www.google.com/search?q=Digital+Sculpture", description: "A dynamic study of the human form rendered entirely through particle systems, constantly shifting and reforming. This node holds the original source code.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
+        { id: 2, title: "Wireframe Structure", category: "Abstract Expressionism", tags: ["#Liquid", "#Vibrant", "#Topology"], color: '#C0C0C0', url: "https://www.google.com/search?q=Abstract+Expressionism", description: "A chaotic yet beautiful expression of connectivity, visualizing network traffic as liquid wireframes. Part of the 'Flow' collection.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
+        { id: 3, title: "Minimalist Grid", category: "Data Visualization", tags: ["#LiDAR", "#Monochrome", "#Clean"], color: '#D0C0C0', url: "https://www.google.com/search?q=Data+Visualization", description: "A clean, responsive visualization of sensor data. The grid represents data points recorded over a 24-hour period.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
+        { id: 4, title: "Geometric Abstraction", category: "Figurative Particles", tags: ["#Music", "#Aura", "#Synth"], color: '#E0D0D0', url: "https://www.google.com/search?q=Geometric+Abstraction", description: "Artwork generated by feeding musical frequency data into a geometric algorithm. It changes form based on the last recorded sound input.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
+        { id: 5, title: "Blue and Gold Swirl", category: "Digital Flora", tags: ["#Neon", "#Organic", "#Growth"], color: '#F0E0E0', url: "https://www.google.com/search?q=Digital+Flora", description: "A simulation of digital organic growth, where the swirl patterns are dictated by L-systems. Represents a seed for future bio-digital creations.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
+        { id: 6, title: "Sphere in Darkness", category: "3D Modeling", tags: ["#Sculpture", "#Hollow", "#Void"], color: '#F8F8F8', url: "https://www.google.com/search?q=3D+Modeling", description: "A study in negative space and volumetric light. The sphere is a hollow vessel, symbolizing untapped potential within the network.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
+        { id: 7, title: "Digital Ocean", category: "Abstract 3D", tags: ["#Planets", "#Rings", "#Water"], color: '#FEFEFE', url: "https://www.google.com/search?q=Abstract+3D", description: "Rendering of an abstract planetary body composed entirely of undulating digital waves. It serves as an archive for water-themed generative art.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
+        { id: 8, title: "Red Web Structure", category: "Data Visualization", tags: ["#Code", "#Network", "#Chaos"], color: '#FFFFFF', url: "https://www.google.com/search?q=Network+Data", description: "A visualization of chaotic network failure points, highlighting areas of high stress and latency in a vibrant red hue.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
+        { id: 9, title: "Complex Pattern", category: "Digital Painting", tags: ["#Retro", "#Vapor", "#Glitch"], color: '#EBEBEB', url: "https://www.google.com/search?q=Digital+Painting", description: "An intricate pattern that mimics old-school vector art with digital decay effects. The core pattern evolves daily.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
     ];
 
-    init();
-    animate();
+    const EDGES = [
+        { from: 0, to: 1 }, { from: 1, to: 5 }, { from: 2, to: 6 },
+        { from: 3, to: 7 }, { from: 0, to: 4 }, { from: 6, to: 1 },
+        { from: 8, to: 9 }, { from: 9, to: 3 }, { from: 4, to: 8 },
+        { from: 7, to: 2 }
+    ];
 
-    function init() {
-      // Scene
-      scene = new THREE.Scene();
+    /* ========== THREE.JS STATE & FORCE CONSTANTS ========== */
+    let scene, camera, renderer, controls;
+    let raycaster, mouse;
+    let nodeGroup, lineGroup;
+    let nodes = [], edges = [];
+    const NODE_RADIUS = 3;
+    const GALAXY_RADIUS = 150;
+    const CLICK_THRESHOLD = 25; // pixels
 
-      // Camera
-      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-      camera.position.set(0, 0, 8);
+    // Force Simulation Constants
+    const K_SPRING_CENTER = 0.0001; // Force pulling node to its original calculated position
+    const K_REPEL_NODE = 25;        // Force pushing nodes away from each other
+    const VELOCITY_DAMPING = 0.98;  // Damping for velocity (flick/force decay)
 
-      // Renderer
-      renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg'), antialias: true });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(window.devicePixelRatio);
-      renderer.outputEncoding = THREE.sRGBEncoding;
+    let draggedNode = null;
+    let plane = new THREE.Plane();
+    let offset = new THREE.Vector3();
+    let intersection = new THREE.Vector3(); 
+    let clickStartScreen = {x: 0, y: 0};
+    let isModalOpen = false;
+    let currentProjectUrl = '';
+    const tempV = new THREE.Vector3();
 
-      // Lights
-      const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
-      scene.add(ambientLight);
-      const pointLight = new THREE.PointLight(0xffffff, 1);
-      pointLight.position.set(10, 10, 10);
-      scene.add(pointLight);
+    // Modal elements
+    const projectModal = document.getElementById('projectModal');
+    const modalBackdrop = document.getElementById('modalBackdrop');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const modalDetailsDiv = document.getElementById('modal-project-details');
+    const fullProjectBtn = document.getElementById('fullProjectBtn');
+    const actionMessage = document.getElementById('actionMessage');
 
-      // Stars
-      const starGeometry = new THREE.BufferGeometry();
-      const starVertices = [];
-      for (let i = 0; i < 600; i++) {
-        starVertices.push(THREE.MathUtils.randFloatSpread(100),
-                          THREE.MathUtils.randFloatSpread(100),
-                          THREE.MathUtils.randFloatSpread(100));
-      }
-      starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
-      const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.25 });
-      const stars = new THREE.Points(starGeometry, starMaterial);
-      scene.add(stars);
-
-      // Project spheres
-      createProjectSpheres();
-
-      // Controls
-      controls = new THREE.OrbitControls(camera, renderer.domElement);
-      controls.enableDamping = true;
-      controls.enablePan = false;
-      controls.minDistance = 3;
-      controls.maxDistance = 20;
-
-      // Events
-      window.addEventListener('resize', onWindowResize);
-      document.addEventListener('click', onClick);
-      document.addEventListener('touchstart', onTouchStart);
-      closeModalBtn.addEventListener('click', closeModal);
+    /* ---------- Helpers for pointer coordinates (mouse & touch) ---------- */
+    function getPointerCoordinates(event, isEnd = false) {
+        // returns { clientX, clientY } and sets mouse.x / mouse.y for raycasting
+        const rect = renderer.domElement.getBoundingClientRect();
+        let clientX = 0, clientY = 0;
+        // for touchend use changedTouches
+        const pointer = (isEnd ? (event.changedTouches && event.changedTouches[0]) : (event.touches && event.touches[0])) || event;
+        if (pointer) {
+            clientX = pointer.clientX;
+            clientY = pointer.clientY;
+        } else {
+            clientX = event.clientX || 0;
+            clientY = event.clientY || 0;
+        }
+        mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+        return { clientX, clientY };
     }
 
-    function createProjectSpheres() {
-      const geometry = new THREE.SphereGeometry(0.8, 32, 32);
-      const orbitRadius = 5;
+    /* ---------- Initialization ---------- */
+    function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        scene.fog = new THREE.FogExp2(0x000000, 0.0006);
 
-      projects.forEach((proj, i) => {
-        const angle = (i / projects.length) * Math.PI * 2;
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 2000);
+        camera.position.set(0, 0, 200);
 
-        const texture = textureLoader.load(proj.image_path);
-        const material = new THREE.MeshStandardMaterial({
-          map: texture,
-          emissive: new THREE.Color(proj.color).multiplyScalar(0.2),
-          roughness: 0.6,
-          metalness: 0.3
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.domElement.style.touchAction = 'none'; // important for mobile touch handling
+        document.body.appendChild(renderer.domElement);
+
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.minDistance = 50;
+        controls.maxDistance = 600;
+
+        // lights
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const dir = new THREE.DirectionalLight(0xffffff, 1.6);
+        dir.position.set(10, 10, 10);
+        scene.add(dir);
+
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+
+        nodeGroup = new THREE.Group();
+        lineGroup = new THREE.Group();
+        scene.add(nodeGroup);
+        scene.add(lineGroup);
+
+        createBackgroundStars(900);
+        createGalaxyNetwork();
+        createLabels();
+        populateFilterMenu();
+
+        // listeners
+        window.addEventListener('resize', onWindowResize, false);
+        const canvas = renderer.domElement;
+
+        // Use pointer events where supported for unified handling; fallback to touch/mouse
+        if (window.PointerEvent) {
+            canvas.addEventListener('pointerdown', onPointerDown, { passive: false });
+            canvas.addEventListener('pointermove', onPointerMove, { passive: false });
+            canvas.addEventListener('pointerup', onPointerUp, { passive: false });
+            canvas.addEventListener('pointercancel', onPointerUp, { passive: false });
+        } else {
+            canvas.addEventListener('mousedown', onPointerDown, { passive: false });
+            canvas.addEventListener('mousemove', onPointerMove, { passive: false });
+            canvas.addEventListener('mouseup', onPointerUp, { passive: false });
+
+            canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+            canvas.addEventListener('touchmove', onPointerMove, { passive: false });
+            canvas.addEventListener('touchend', onPointerUp, { passive: false });
+            canvas.addEventListener('touchcancel', onPointerUp, { passive: false });
+        }
+
+        // modal controls
+        modalBackdrop.onclick = closeProjectModal;
+        modalCloseBtn.onclick = closeProjectModal;
+        fullProjectBtn.onclick = handleFullProjectClick;
+
+        // fade out instructions after a few seconds
+        setTimeout(() => {
+            const el = document.getElementById('instructions');
+            if (el) el.style.opacity = '0';
+        }, 6000);
+
+        animate();
+    }
+
+    /**
+     * Creates a circular texture using the Canvas API.
+     * This texture is applied to PointsMaterial to render points as smooth circles.
+     */
+    function createCircleTexture() {
+        const size = 64; // Texture resolution
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext('2d');
+        
+        // Draw a white circle in the center
+        context.beginPath();
+        context.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI);
+        context.fillStyle = 'white';
+        context.fill();
+
+        return new THREE.CanvasTexture(canvas);
+    }
+
+    /* ---------- Event handlers ---------- */
+    function onPointerDown(event) {
+        if (isModalOpen) return;
+        event.preventDefault();
+        const p = getPointerCoordinates(event, false);
+        clickStartScreen.x = p.clientX;
+        clickStartScreen.y = p.clientY;
+
+        // cast ray
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(nodeGroup.children, false);
+
+        if (intersects.length > 0) {
+            const hit = intersects[0];
+            draggedNode = hit.object;
+            controls.enabled = false;
+
+            // plane normal - use camera direction
+            const camDir = new THREE.Vector3();
+            camera.getWorldDirection(camDir);
+            plane.setFromNormalAndCoplanarPoint(camDir, hit.point);
+            offset.copy(hit.point).sub(draggedNode.position);
+
+            // highlight while dragging
+            if (draggedNode.material && draggedNode.material.emissive) {
+                // Set emissive to a temporary bright green for feedback
+                draggedNode.material.emissive.set(0x00ff00);
+            }
+        } else {
+            draggedNode = null;
+        }
+    }
+
+    function onPointerMove(event) {
+        if (isModalOpen) return;
+        event.preventDefault();
+        getPointerCoordinates(event, false);
+
+        if (draggedNode) {
+            raycaster.setFromCamera(mouse, camera);
+            if (raycaster.ray.intersectPlane(plane, intersection)) {
+                draggedNode.position.copy(intersection).sub(offset);
+                // Zero out velocity when actively dragging
+                draggedNode.userData.vel.set(0, 0, 0);
+            }
+        } else {
+            // hover effect
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodeGroup.children, false);
+
+            // reset emissive for all nodes
+            nodeGroup.children.forEach(n => {
+                if (n.material && n.userData && n.userData.isNode) {
+                    // restore subtle emissive based on its original color
+                    const originalColor = new THREE.Color(n.userData.color);
+                    n.material.emissive.copy(originalColor).multiplyScalar(0.14);
+                }
+            });
+
+            if (intersects.length > 0) {
+                renderer.domElement.style.cursor = 'pointer';
+                const top = intersects[0].object;
+                if (top.material && top.material.emissive) {
+                    // Highlight on hover
+                    top.material.emissive.set(0x00ffcc);
+                }
+            } else {
+                renderer.domElement.style.cursor = 'grab';
+            }
+        }
+    }
+
+    function onPointerUp(event) {
+        if (isModalOpen) return;
+        event.preventDefault();
+        const p = getPointerCoordinates(event, true);
+
+        if (draggedNode) {
+            const distanceMoved = Math.hypot(p.clientX - clickStartScreen.x, p.clientY - clickStartScreen.y);
+
+            // restore emissive for the now-released node
+            if (draggedNode.material && draggedNode.material.emissive) {
+                const originalColor = new THREE.Color(draggedNode.userData.color);
+                draggedNode.material.emissive.copy(originalColor).multiplyScalar(0.14);
+            }
+
+            if (distanceMoved < CLICK_THRESHOLD) {
+                // treat as click/tap
+                showProjectModal(draggedNode.userData);
+            } else {
+                // flick: apply a small initial velocity
+                const flickX = (p.clientX - clickStartScreen.x) * 0.008;
+                const flickY = (p.clientY - clickStartScreen.y) * 0.008;
+                // Convert screen motion to 3D velocity relative to camera direction
+                draggedNode.userData.vel.set(flickX, -flickY, 0).applyQuaternion(camera.quaternion).multiplyScalar(10);
+            }
+
+            draggedNode = null;
+            controls.enabled = true;
+        } else {
+            // If pointer up without previously pressing a node, check if we released on a node (fast tap without down intersect due to slight finger movement)
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodeGroup.children, false);
+            if (intersects.length > 0) {
+                const hit = intersects[0];
+                showProjectModal(hit.object.userData);
+            }
+        }
+    }
+
+    /* ---------- Create stars/galaxy / nodes ---------- */
+    function createBackgroundStars(count = 800) {
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+        const color = new THREE.Color();
+
+        for (let i = 0; i < count; i++) {
+            const r = Math.random() * 700 + 50;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(Math.random() * 2 - 1);
+
+            positions[i*3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+            positions[i*3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            positions[i*3 + 2] = r * Math.cos(phi);
+
+            color.setHSL(Math.random() * 0.2 + 0.5, 0.6, Math.random() * 0.5 + 0.3);
+            colors[i*3 + 0] = color.r;
+            colors[i*3 + 1] = color.g;
+            colors[i*3 + 2] = color.b;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        
+        // Use the circular texture for the stars
+        const starTexture = createCircleTexture();
+
+        const material = new THREE.PointsMaterial({
+            size: 1.5, // Slightly increased size for visibility
+            vertexColors: true,
+            transparent: true,
+            sizeAttenuation: true,
+            blending: THREE.AdditiveBlending, // essential for glow/overlap
+            map: starTexture // Apply the circular texture
         });
 
-        const sphere = new THREE.Mesh(geometry, material);
-        sphere.position.set(Math.cos(angle) * orbitRadius, Math.sin(angle) * orbitRadius, 0);
-        sphere.userData = { ...proj, angle, orbitRadius };
-        scene.add(sphere);
-        spheres.push(sphere);
-      });
+        const stars = new THREE.Points(geometry, material);
+        scene.add(stars);
     }
 
+    function createGalaxyNetwork() {
+        const sphereGeo = new THREE.SphereGeometry(NODE_RADIUS, 24, 24);
+
+        ARTWORKS.forEach(data => {
+            // random spherical placement inside radius
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(Math.random() * 2 - 1);
+            const r = Math.random() * GALAXY_RADIUS;
+
+            const material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(data.color),
+                metalness: 0.08,
+                roughness: 0.45,
+                // Initial low emissive value for subtle glow
+                emissive: new THREE.Color(data.color).multiplyScalar(0.14)
+            });
+
+            const sphere = new THREE.Mesh(sphereGeo, material);
+            sphere.position.set(
+                r * Math.sin(phi) * Math.cos(theta),
+                r * Math.sin(phi) * Math.sin(theta),
+                r * Math.cos(phi)
+            );
+
+            // store extended userData
+            sphere.userData = {
+                ...data,
+                originalPosition: sphere.position.clone(),
+                animationOffset: Math.random() * Math.PI * 2,
+                vel: new THREE.Vector3(0,0,0), // Velocity vector for forces
+                isNode: true
+            };
+
+            nodeGroup.add(sphere);
+            nodes.push(sphere);
+        });
+
+        // create edges lines
+        EDGES.forEach(edge => {
+            const nodeA = nodes.find(n => n.userData.id === edge.from);
+            const nodeB = nodes.find(n => n.userData.id === edge.to);
+            if (!nodeA || !nodeB) return;
+
+            // use dynamic buffer geometry (6 floats)
+            const positions = new Float32Array(6);
+            const geom = new THREE.BufferGeometry();
+            geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const mat = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.7 });
+            const line = new THREE.Line(geom, mat);
+            lineGroup.add(line);
+
+            // Store edge data for easy updates
+            edges.push({ mesh: line, nodeA, nodeB });
+        });
+    }
+
+    /* ---------- Labels (2D) ---------- */
+    function createLabels() {
+        const labelContainer = document.getElementById('label-container');
+        nodes.forEach(node => {
+            const d = node.userData;
+            const label = document.createElement('div');
+            // Tailwind classes applied here
+            label.className = 'node-label absolute pointer-events-none -translate-x-1/2 -translate-y-full p-1.5 rounded-md bg-black/70 border border-white/5 text-xs whitespace-nowrap z-30 transition-opacity';
+            label.id = `label-${d.id}`;
+            label.textContent = d.title;
+            d._labelEl = label; // store reference
+            labelContainer.appendChild(label);
+        });
+    }
+
+    function updateLabels() {
+        nodes.forEach(node => {
+            const label = node.userData._labelEl;
+            if (!label) return;
+
+            tempV.setFromMatrixPosition(node.matrixWorld);
+            tempV.project(camera);
+
+            const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-tempV.y * 0.5 + 0.5) * window.innerHeight;
+            // Visible if within frustum (z < 1) and its 3D object is set to visible
+            const visible = node.visible && tempV.z < 1; 
+
+            label.style.left = `${x}px`;
+            label.style.top = `${y}px`;
+            label.style.display = visible ? 'block' : 'none';
+
+            // fade based on distance from camera
+            const distance = camera.position.distanceTo(node.position);
+            // Label opacity fades out between 100 (full opacity) and 300 (zero opacity) distance
+            const opacity = Math.min(1.0, Math.max(0, (300 - distance) / 200));
+            label.style.opacity = visible ? opacity : 0;
+        });
+    }
+
+    /* ---------- Animation loop ---------- */
+    function animate(time) {
+        requestAnimationFrame(animate);
+
+        const visibleNodes = nodes.filter(n => n.visible);
+        const t = time || 0; // Ensure time is defined for sine waves
+
+        visibleNodes.forEach(node => {
+            const data = node.userData;
+
+            // 1. Force Simulation Logic
+            if (node !== draggedNode) {
+                // a. Spring Force (pull towards original position)
+                const diffSpring = new THREE.Vector3().subVectors(data.originalPosition, node.position);
+                data.vel.add(diffSpring.multiplyScalar(K_SPRING_CENTER));
+
+                // b. Repulsion Force (push away from every other visible node)
+                const repulsionForce = new THREE.Vector3();
+                visibleNodes.forEach(otherNode => {
+                    if (node.id === otherNode.id) return;
+
+                    const diffRepel = new THREE.Vector3().subVectors(node.position, otherNode.position);
+                    const distanceSq = diffRepel.lengthSq() || 0.1; // avoid division by zero
+                    
+                    // Apply force inversely proportional to distance squared
+                    // The force is stronger when nodes are closer (K_REPEL / distanceSq)
+                    const forceMagnitude = K_REPEL_NODE / distanceSq;
+
+                    repulsionForce.add(diffRepel.normalize().multiplyScalar(forceMagnitude));
+                });
+                data.vel.add(repulsionForce);
+            }
+
+            // 2. Apply velocity and damping
+            node.position.add(data.vel);
+            data.vel.multiplyScalar(VELOCITY_DAMPING); // Smoothly decay velocity
+
+            // 3. Subtle Floating Movement (Organic Jiggle)
+            const floatSpeed = 0.0005;
+            // Very small magnitude (0.005) ensures the movement is barely visible
+            const floatMagnitude = 0.005; 
+            const offset = data.animationOffset;
+
+            node.position.x += Math.sin((t * floatSpeed) + offset) * floatMagnitude;
+            node.position.y += Math.cos((t * floatSpeed * 1.2) + offset) * floatMagnitude;
+            node.position.z += Math.sin((t * floatSpeed * 0.8) + offset) * floatMagnitude;
+
+            // 4. Simple Visual Pulse (Scaling)
+            const pulse = Math.sin(t * 0.001 + offset) * 0.5;
+            node.scale.setScalar(1 + pulse * 0.05);
+
+            // 5. Keep network bounded
+            if (node.position.length() > GALAXY_RADIUS * 1.4) {
+                 // Gently pull back towards the origin if too far out
+                node.position.multiplyScalar(0.995); 
+            }
+        });
+
+        // update edge positions
+        edges.forEach(e => {
+            // Only update if both connected nodes are visible
+            if (e.nodeA.visible && e.nodeB.visible) {
+                const arr = e.mesh.geometry.attributes.position.array;
+                arr[0] = e.nodeA.position.x;
+                arr[1] = e.nodeA.position.y;
+                arr[2] = e.nodeA.position.z;
+                arr[3] = e.nodeB.position.x;
+                arr[4] = e.nodeB.position.y;
+                arr[5] = e.nodeB.position.z;
+                e.mesh.geometry.attributes.position.needsUpdate = true;
+                e.mesh.visible = true;
+            } else {
+                e.mesh.visible = false;
+            }
+        });
+
+        controls.update();
+        updateLabels();
+        renderer.render(scene, camera);
+    }
+
+    /* ---------- Resize ---------- */
     function onWindowResize() {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+        if (!camera || !renderer) return;
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    function onClick(event) {
-      if (isModalOpen) return;
-      const mouse = new THREE.Vector2(
-        (event.clientX / window.innerWidth) * 2 - 1,
-        -(event.clientY / window.innerHeight) * 2 + 1
-      );
-      checkIntersection(mouse);
+    /* ---------- Filtering UI ---------- */
+    function populateFilterMenu() {
+        const uniqueCategories = Array.from(new Set(ARTWORKS.map(a => a.category))).sort();
+        const categoryFilter = document.getElementById('category-filter');
+        categoryFilter.innerHTML = '';
+        const allOption = document.createElement('option');
+        allOption.value = 'all';
+        allOption.textContent = 'Show All Projects';
+        categoryFilter.appendChild(allOption);
+
+        uniqueCategories.forEach(c => {
+            const o = document.createElement('option');
+            o.value = c;
+            o.textContent = c;
+            categoryFilter.appendChild(o);
+        });
+
+        categoryFilter.addEventListener('change', (e) => setFilter(e.target.value));
     }
 
-    function onTouchStart(event) {
-      if (isModalOpen) return;
-      const touch = event.touches[0];
-      const mouse = new THREE.Vector2(
-        (touch.clientX / window.innerWidth) * 2 - 1,
-        -(touch.clientY / window.innerHeight) * 2 + 1
-      );
-      checkIntersection(mouse);
+    function setFilter(filterKey) {
+        nodes.forEach(node => {
+            const isVisible = filterKey === 'all' || node.userData.category === filterKey;
+            node.visible = isVisible;
+            // The label visibility update is handled by updateLabels() which checks node.visible
+        });
+
+        // Edge visibility is handled within the animate loop based on node visibility
     }
 
-    function checkIntersection(mouse) {
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(spheres);
-      if (intersects.length > 0) {
-        showProjectModal(intersects[0].object.userData);
-      }
+    /* ========== Modal logic (robust, mobile-friendly) ========== */
+    function showProjectModal(data) {
+        isModalOpen = true;
+        document.body.style.overflow = 'hidden'; // prevent page scroll on mobile
+
+        currentProjectUrl = data.url || '';
+
+        // inject content
+        modalDetailsDiv.innerHTML = `
+            <header>
+                <h3 id="modal-title" class="text-xl font-extrabold">${escapeHtml(data.title)}</h3>
+                <p class="category text-xs font-bold uppercase tracking-widest mt-1 mb-3">${escapeHtml(data.category)}</p>
+            </header>
+            <div class="image-card rounded-xl overflow-hidden shadow-lg mb-4">
+                <img src="${escapeAttr(data.image_path)}" alt="${escapeAttr(data.title)}"
+                    class="w-full h-56 object-cover md:h-72"
+                    onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Placeholder'">
+                <div class="description p-3 text-gray-400 text-sm italic">
+                    ${escapeHtml(data.description)}
+                </div>
+            </div>
+            <div class="tag-container flex flex-wrap gap-2 mt-3">
+                ${data.tags.map(t => `<span class="tag text-xs font-bold px-3 py-1 rounded-full text-gray-300">${escapeHtml(t)}</span>`).join('')}
+            </div>
+            <div class="color-indicator flex gap-2 items-center mt-3 font-mono text-xs">
+                <div class="color-swatch w-4 h-4 rounded-full border border-white/10" style="background:${escapeAttr(data.color)}"></div>
+                <div style="opacity:0.9">${escapeHtml(data.color)}</div>
+            </div>
+        `;
+
+        actionMessage.style.display = 'none';
+        projectModal.classList.remove('hidden');
+        projectModal.style.display = 'flex';
+        fullProjectBtn.focus();
     }
 
-    function showProjectModal(project) {
-      isModalOpen = true;
-      projectModal.classList.remove('hidden');
-      document.body.style.overflow = 'hidden';
-
-      modalDetailsDiv.innerHTML = `
-        <div class="space-y-4">
-          <img src="${project.image_path}" alt="${project.title}"
-               class="w-full rounded-lg border border-white/10 shadow-lg object-cover" />
-          <div>
-            <h3 class="text-xl font-extrabold mb-2">${project.title}</h3>
-            <p class="category text-sm uppercase tracking-wide mb-2">${project.category}</p>
-            <p class="text-gray-300 text-sm leading-relaxed">${project.description}</p>
-          </div>
-          <div class="flex flex-wrap gap-2 mt-3">
-            ${project.tags.map(tag => `<span class="tag text-xs px-2 py-1 rounded bg-white/10">${tag}</span>`).join('')}
-          </div>
-        </div>
-      `;
-
-      openProjectBtn.href = project.url;
+    function closeProjectModal() {
+        isModalOpen = false;
+        projectModal.style.display = 'none';
+        projectModal.classList.add('hidden');
+        document.body.style.overflow = ''; // restore
     }
 
-    function closeModal() {
-      isModalOpen = false;
-      projectModal.classList.add('hidden');
-      document.body.style.overflow = 'auto';
+    function handleFullProjectClick() {
+        if (!currentProjectUrl) return;
+        actionMessage.textContent = `Opening ${currentProjectUrl}`;
+        actionMessage.classList.remove('hidden');
+        // open in new tab/window
+        window.open(currentProjectUrl, '_blank', 'noopener');
+        // close modal after short delay so the user can see the action message
+        setTimeout(() => {
+            actionMessage.classList.add('hidden');
+            closeProjectModal();
+        }, 900);
     }
 
-    function animate() {
-      requestAnimationFrame(animate);
-      controls.update();
-
-      spheres.forEach((s, i) => {
-        s.userData.angle += 0.001 + i * 0.0002;
-        s.position.x = Math.cos(s.userData.angle) * s.userData.orbitRadius;
-        s.position.y = Math.sin(s.userData.angle) * s.userData.orbitRadius;
-      });
-
-      renderer.render(scene, camera);
+    /* ---------- small helpers to protect injected HTML ---------- */
+    function escapeHtml(str = '') {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
     }
-  </script>
+    function escapeAttr(str = '') {
+        // Ensures proper escaping for HTML attributes like src or style values
+        return escapeHtml(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    /* ---------- Start ---------- */
+    window.onload = init;
+    </script>
 </body>
-</html>
+</html> 
