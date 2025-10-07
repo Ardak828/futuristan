@@ -4,252 +4,105 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>3D Interactive Art Network</title>
+    <!-- Load Tailwind CSS for modern, utility-first styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* Custom styles for Three.js container and fonts */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;600;800&display=swap');
-
-        :root {
-            --bg: #000;
-            --panel: #111827;
-            --muted: #9ca3af;
-            --accent: #4f46e5;
-        }
 
         html, body {
             height: 100%;
             margin: 0;
             padding: 0;
-            background: var(--bg);
+            background: #000;
             font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
             color: #fff;
             overflow: hidden;
         }
 
         canvas { display: block; width: 100%; height: 100%; }
-
-        /* Instructions */
-        #instructions {
-            position: fixed;
-            left: 50%;
-            top: 1rem;
-            transform: translateX(-50%);
-            z-index: 40;
-            background: rgba(255,255,255,0.06);
-            color: #d1d5db;
-            padding: 0.6rem 0.9rem;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            transition: opacity 0.4s;
+        
+        /* Define CSS Variables for modal/panel consistency */
+        :root {
+            --panel: #111827;
+            --muted: #9ca3af;
+            --accent: #4f46e5;
         }
 
-        /* Nav/filter */
-        #nav-container {
-            position: fixed;
-            left: 1rem;
-            top: 1rem;
-            z-index: 40;
-        }
-        select#category-filter {
-            padding: 0.6rem 0.75rem;
-            border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.08);
-            background: rgba(255,255,255,0.04);
-            color: #fff;
-            font-weight: 700;
-            min-width: 12rem;
-        }
-
-        /* Node labels */
-        .node-label {
-            position: absolute;
-            pointer-events: none;
-            transform: translate(-50%, -100%);
-            padding: 4px 8px;
-            border-radius: 6px;
-            background: rgba(0,0,0,0.6);
-            border: 1px solid rgba(255,255,255,0.06);
-            font-size: 0.82rem;
-            white-space: nowrap;
-            z-index: 30;
-            transition: opacity 0.12s;
-        }
-
-        /* Modal (single modal, dynamic content) */
-        #projectModal {
-            position: fixed;
-            inset: 0;
-            z-index: 60;
-            display: none; /* toggled by JS */
-            align-items: center;
-            justify-content: center;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        #projectModal .backdrop {
-            position: absolute;
-            inset: 0;
-            background: rgba(17,24,39,0.82);
-        }
-
+        /* Modal specific styles remaining from original, now combined with Tailwind */
         #projectModal .panel {
-            position: relative;
-            width: 92%;
-            max-width: 560px;
-            border-radius: 14px;
             background: var(--panel);
-            border: 1px solid rgba(255,255,255,0.04);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-            padding: 1.2rem;
-            margin: 2rem;
-            z-index: 62;
-            color: #e6eef8;
         }
-
         #projectModal .close-btn {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: transparent;
-            border: none;
-            color: var(--muted);
-            padding: 6px;
-            border-radius: 999px;
-            cursor: pointer;
+             color: var(--muted);
         }
-        #projectModal .close-btn:hover { color: #fff; background: rgba(255,255,255,0.03); }
-
-        #modal-project-details h3 {
-            margin: 0 0 6px 0;
-            font-size: 1.4rem;
-            font-weight: 800;
+        #projectModal .close-btn:hover { 
+            color: #fff; background: rgba(255,255,255,0.03); 
+        }
+        #projectModal .panel h3 {
             color: #fff;
         }
-        #modal-project-details p.category {
-            margin: 0 0 12px 0;
-            color: #9aa0ff;
-            font-size: 0.85rem;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            font-weight: 700;
+        #projectModal .panel p.category {
+            color: #9aa0ff; /* Purple accent */
         }
-
         .image-card {
-            border-radius: 10px;
-            overflow: hidden;
             background: #0f1724;
             border: 1px solid rgba(255,255,255,0.03);
         }
-        .image-card img {
-            width: 100%;
-            height: 220px;
-            object-fit: cover;
-            display: block;
-        }
-        .image-card .description {
-            padding: 0.9rem;
-            color: var(--muted);
-            font-size: 0.95rem;
-            font-style: italic;
-        }
-
-        .tag-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 10px;
-        }
         .tag {
             background: rgba(255,255,255,0.03);
-            padding: 6px 10px;
-            border-radius: 999px;
-            font-weight: 700;
-            font-size: 0.82rem;
-            color: #d1d5db;
             border: 1px solid rgba(255,255,255,0.02);
         }
-
         .color-indicator {
-            display:flex;
-            gap:10px;
-            align-items:center;
-            margin-top: 10px;
             color: var(--muted);
-            font-family: monospace;
-            font-size: 0.82rem;
-        }
-        .color-swatch {
-            width: 14px;
-            height: 14px;
-            border-radius: 999px;
-            border: 1px solid rgba(255,255,255,0.06);
         }
 
-        .modal-footer {
-            margin-top: 1rem;
-        }
-        #fullProjectBtn {
-            width: 100%;
-            padding: 0.85rem;
-            border-radius: 10px;
-            border: none;
-            cursor: pointer;
-            font-weight: 800;
-            font-size: 1rem;
-            background: var(--accent);
-            color: white;
-        }
-        #actionMessage {
-            margin-top: 0.6rem;
-            color: var(--muted);
-            font-size: 0.9rem;
-            display: none;
-        }
-
-        /* utility */
-        .hidden { display: none; }
-        @media (min-width: 900px) {
-            .image-card img { height: 280px; }
-        }
     </style>
 
-    <!-- THREE.js r128 + OrbitControls (kept same version you used) -->
+    <!-- THREE.js r128 + OrbitControls -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
-    <div id="instructions">
-        <div style="font-weight:800; color:#dfe3ff">3D Network Explorer</div>
-        <div style="font-size:0.85rem; margin-top:4px; color:#d1d5db">
+    <!-- Instructions (Tailwind classes applied) -->
+    <div id="instructions" class="fixed top-4 left-1/2 -translate-x-1/2 z-40 bg-white/10 text-gray-300 p-2 rounded-xl font-semibold text-sm backdrop-blur-sm transition-opacity">
+        <div class="font-extrabold text-[#dfe3ff]">3D Network Explorer</div>
+        <div class="text-xs mt-1 text-gray-300">
             Drag to orbit — Click / Tap a sphere to open details
         </div>
     </div>
 
-    <div id="nav-container">
-        <select id="category-filter" aria-label="Filter projects"></select>
+    <!-- Filter Menu (Tailwind classes applied) -->
+    <div id="nav-container" class="fixed top-4 left-4 z-40">
+        <select id="category-filter" aria-label="Filter projects"
+            class="p-2 rounded-xl border border-white/10 bg-white/5 text-white font-bold text-sm min-w-[12rem] focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+        </select>
     </div>
 
     <div id="label-container" style="pointer-events:none;"></div>
 
-    <!-- Modal -->
-    <div id="projectModal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-        <div class="backdrop" id="modalBackdrop"></div>
-        <div class="panel" role="document">
-            <button class="close-btn" id="modalCloseBtn" aria-label="Close modal">
+    <!-- Modal (Tailwind classes applied) -->
+    <div id="projectModal" role="dialog" aria-modal="true" aria-labelledby="modal-title"
+        class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto hidden">
+        <div class="backdrop absolute inset-0 bg-gray-900/80" id="modalBackdrop"></div>
+        <div class="panel relative w-11/12 max-w-xl rounded-xl border border-white/5 shadow-2xl p-6 text-gray-100 m-8 z-50" role="document">
+            
+            <!-- Close Button -->
+            <button class="close-btn absolute top-3 right-3 bg-transparent border-none p-1.5 rounded-full cursor-pointer hover:text-white" id="modalCloseBtn" aria-label="Close modal">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
 
             <div id="modal-project-details" aria-live="polite">
-                <!-- injected -->
+                <!-- injected content -->
             </div>
 
-            <div class="modal-footer">
-                <button id="fullProjectBtn">View Full Project</button>
-                <p id="actionMessage">Opening project...</p>
+            <div class="modal-footer mt-4">
+                <button id="fullProjectBtn" class="w-full py-3 rounded-xl border-none cursor-pointer font-extrabold text-base bg-indigo-600 text-white hover:bg-indigo-700 transition">
+                    View Full Project
+                </button>
+                <p id="actionMessage" class="mt-2 text-gray-400 text-sm hidden">Opening project...</p>
             </div>
         </div>
     </div>
@@ -260,9 +113,9 @@
         { id: 0, title: "Conceptual Art - Light Form", category: "Conceptual Art", tags: ["#3D", "#SciFi", "#Light"], color: '#A0A0A0', url: "https://www.google.com/search?q=Conceptual+Art", description: "Explores the interplay between perceived reality and light's formless nature. A decentralized ledger of light-based art experiments.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
         { id: 1, title: "Digital Portrait Study", category: "Digital Sculpture", tags: ["#Particles", "#Monochrome", "#Face"], color: '#B0B0B0', url: "https://www.google.com/search?q=Digital+Sculpture", description: "A dynamic study of the human form rendered entirely through particle systems, constantly shifting and reforming. This node holds the original source code.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
         { id: 2, title: "Wireframe Structure", category: "Abstract Expressionism", tags: ["#Liquid", "#Vibrant", "#Topology"], color: '#C0C0C0', url: "https://www.google.com/search?q=Abstract+Expressionism", description: "A chaotic yet beautiful expression of connectivity, visualizing network traffic as liquid wireframes. Part of the 'Flow' collection.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
-        { id: 3, title: "Minimalist Grid", category: "Data Visualization", tags: ["#LiDAR", "#Monochrome", "#Clean"], color: '#D0D0D0', url: "https://www.google.com/search?q=Data+Visualization", description: "A clean, responsive visualization of sensor data. The grid represents data points recorded over a 24-hour period.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
-        { id: 4, title: "Geometric Abstraction", category: "Figurative Particles", tags: ["#Music", "#Aura", "#Synth"], color: '#E0E0E0', url: "https://www.google.com/search?q=Geometric+Abstraction", description: "Artwork generated by feeding musical frequency data into a geometric algorithm. It changes form based on the last recorded sound input.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
-        { id: 5, title: "Blue and Gold Swirl", category: "Digital Flora", tags: ["#Neon", "#Organic", "#Growth"], color: '#F0F0F0', url: "https://www.google.com/search?q=Digital+Flora", description: "A simulation of digital organic growth, where the swirl patterns are dictated by L-systems. Represents a seed for future bio-digital creations.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
+        { id: 3, title: "Minimalist Grid", category: "Data Visualization", tags: ["#LiDAR", "#Monochrome", "#Clean"], color: '#D0C0C0', url: "https://www.google.com/search?q=Data+Visualization", description: "A clean, responsive visualization of sensor data. The grid represents data points recorded over a 24-hour period.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
+        { id: 4, title: "Geometric Abstraction", category: "Figurative Particles", tags: ["#Music", "#Aura", "#Synth"], color: '#E0D0D0', url: "https://www.google.com/search?q=Geometric+Abstraction", description: "Artwork generated by feeding musical frequency data into a geometric algorithm. It changes form based on the last recorded sound input.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
+        { id: 5, title: "Blue and Gold Swirl", category: "Digital Flora", tags: ["#Neon", "#Organic", "#Growth"], color: '#F0E0E0', url: "https://www.google.com/search?q=Digital+Flora", description: "A simulation of digital organic growth, where the swirl patterns are dictated by L-systems. Represents a seed for future bio-digital creations.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
         { id: 6, title: "Sphere in Darkness", category: "3D Modeling", tags: ["#Sculpture", "#Hollow", "#Void"], color: '#F8F8F8', url: "https://www.google.com/search?q=3D+Modeling", description: "A study in negative space and volumetric light. The sphere is a hollow vessel, symbolizing untapped potential within the network.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
         { id: 7, title: "Digital Ocean", category: "Abstract 3D", tags: ["#Planets", "#Rings", "#Water"], color: '#FEFEFE', url: "https://www.google.com/search?q=Abstract+3D", description: "Rendering of an abstract planetary body composed entirely of undulating digital waves. It serves as an archive for water-themed generative art.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
         { id: 8, title: "Red Web Structure", category: "Data Visualization", tags: ["#Code", "#Network", "#Chaos"], color: '#FFFFFF', url: "https://www.google.com/search?q=Network+Data", description: "A visualization of chaotic network failure points, highlighting areas of high stress and latency in a vibrant red hue.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
@@ -276,7 +129,7 @@
         { from: 7, to: 2 }
     ];
 
-    /* ========== THREE.JS STATE ========== */
+    /* ========== THREE.JS STATE & FORCE CONSTANTS ========== */
     let scene, camera, renderer, controls;
     let raycaster, mouse;
     let nodeGroup, lineGroup;
@@ -284,10 +137,16 @@
     const NODE_RADIUS = 3;
     const GALAXY_RADIUS = 150;
     const CLICK_THRESHOLD = 25; // pixels
+
+    // Force Simulation Constants
+    const K_SPRING_CENTER = 0.0001; // Force pulling node to its original calculated position
+    const K_REPEL_NODE = 25;        // Force pushing nodes away from each other
+    const VELOCITY_DAMPING = 0.98;  // Damping for velocity (flick/force decay)
+
     let draggedNode = null;
     let plane = new THREE.Plane();
     let offset = new THREE.Vector3();
-    let intersection = new THREE.Vector3();
+    let intersection = new THREE.Vector3(); 
     let clickStartScreen = {x: 0, y: 0};
     let isModalOpen = false;
     let currentProjectUrl = '';
@@ -295,7 +154,7 @@
 
     // Modal elements
     const projectModal = document.getElementById('projectModal');
-    const modalBackdrop = document.getElementById('modalBackdrop') || document.getElementById('modalBackdrop');
+    const modalBackdrop = document.getElementById('modalBackdrop');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
     const modalDetailsDiv = document.getElementById('modal-project-details');
     const fullProjectBtn = document.getElementById('fullProjectBtn');
@@ -382,7 +241,7 @@
         }
 
         // modal controls
-        document.getElementById('modalBackdrop').onclick = closeProjectModal;
+        modalBackdrop.onclick = closeProjectModal;
         modalCloseBtn.onclick = closeProjectModal;
         fullProjectBtn.onclick = handleFullProjectClick;
 
@@ -393,6 +252,26 @@
         }, 6000);
 
         animate();
+    }
+
+    /**
+     * Creates a circular texture using the Canvas API.
+     * This texture is applied to PointsMaterial to render points as smooth circles.
+     */
+    function createCircleTexture() {
+        const size = 64; // Texture resolution
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext('2d');
+        
+        // Draw a white circle in the center
+        context.beginPath();
+        context.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI);
+        context.fillStyle = 'white';
+        context.fill();
+
+        return new THREE.CanvasTexture(canvas);
     }
 
     /* ---------- Event handlers ---------- */
@@ -420,6 +299,7 @@
 
             // highlight while dragging
             if (draggedNode.material && draggedNode.material.emissive) {
+                // Set emissive to a temporary bright green for feedback
                 draggedNode.material.emissive.set(0x00ff00);
             }
         } else {
@@ -436,17 +316,20 @@
             raycaster.setFromCamera(mouse, camera);
             if (raycaster.ray.intersectPlane(plane, intersection)) {
                 draggedNode.position.copy(intersection).sub(offset);
+                // Zero out velocity when actively dragging
+                draggedNode.userData.vel.set(0, 0, 0);
             }
         } else {
             // hover effect
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(nodeGroup.children, false);
 
-            // reset emissive for all nodes except active/dragged ones
+            // reset emissive for all nodes
             nodeGroup.children.forEach(n => {
                 if (n.material && n.userData && n.userData.isNode) {
-                    // keep a subtle emissive
-                    n.material.emissive.copy(n.material.color).multiplyScalar(0.14);
+                    // restore subtle emissive based on its original color
+                    const originalColor = new THREE.Color(n.userData.color);
+                    n.material.emissive.copy(originalColor).multiplyScalar(0.14);
                 }
             });
 
@@ -454,6 +337,7 @@
                 renderer.domElement.style.cursor = 'pointer';
                 const top = intersects[0].object;
                 if (top.material && top.material.emissive) {
+                    // Highlight on hover
                     top.material.emissive.set(0x00ffcc);
                 }
             } else {
@@ -470,19 +354,21 @@
         if (draggedNode) {
             const distanceMoved = Math.hypot(p.clientX - clickStartScreen.x, p.clientY - clickStartScreen.y);
 
-            // restore emissive
+            // restore emissive for the now-released node
             if (draggedNode.material && draggedNode.material.emissive) {
-                draggedNode.material.emissive.copy(draggedNode.material.color).multiplyScalar(0.14);
+                const originalColor = new THREE.Color(draggedNode.userData.color);
+                draggedNode.material.emissive.copy(originalColor).multiplyScalar(0.14);
             }
 
             if (distanceMoved < CLICK_THRESHOLD) {
                 // treat as click/tap
                 showProjectModal(draggedNode.userData);
             } else {
-                // flick: small velocity
-                const flickX = (p.clientX - clickStartScreen.x) * 0.005;
-                const flickY = (p.clientY - clickStartScreen.y) * 0.005;
-                draggedNode.userData.vel.set(flickX, -flickY, 0).applyQuaternion(camera.quaternion);
+                // flick: apply a small initial velocity
+                const flickX = (p.clientX - clickStartScreen.x) * 0.008;
+                const flickY = (p.clientY - clickStartScreen.y) * 0.008;
+                // Convert screen motion to 3D velocity relative to camera direction
+                draggedNode.userData.vel.set(flickX, -flickY, 0).applyQuaternion(camera.quaternion).multiplyScalar(10);
             }
 
             draggedNode = null;
@@ -522,13 +408,17 @@
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        
+        // Use the circular texture for the stars
+        const starTexture = createCircleTexture();
 
         const material = new THREE.PointsMaterial({
-            size: 0.9,
+            size: 1.5, // Slightly increased size for visibility
             vertexColors: true,
             transparent: true,
             sizeAttenuation: true,
-            blending: THREE.AdditiveBlending
+            blending: THREE.AdditiveBlending, // essential for glow/overlap
+            map: starTexture // Apply the circular texture
         });
 
         const stars = new THREE.Points(geometry, material);
@@ -548,6 +438,7 @@
                 color: new THREE.Color(data.color),
                 metalness: 0.08,
                 roughness: 0.45,
+                // Initial low emissive value for subtle glow
                 emissive: new THREE.Color(data.color).multiplyScalar(0.14)
             });
 
@@ -558,12 +449,12 @@
                 r * Math.cos(phi)
             );
 
-            // store extended userData without overwriting original record
+            // store extended userData
             sphere.userData = {
                 ...data,
                 originalPosition: sphere.position.clone(),
                 animationOffset: Math.random() * Math.PI * 2,
-                vel: new THREE.Vector3(0,0,0),
+                vel: new THREE.Vector3(0,0,0), // Velocity vector for forces
                 isNode: true
             };
 
@@ -579,13 +470,6 @@
 
             // use dynamic buffer geometry (6 floats)
             const positions = new Float32Array(6);
-            positions[0] = nodeA.position.x;
-            positions[1] = nodeA.position.y;
-            positions[2] = nodeA.position.z;
-            positions[3] = nodeB.position.x;
-            positions[4] = nodeB.position.y;
-            positions[5] = nodeB.position.z;
-
             const geom = new THREE.BufferGeometry();
             geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
@@ -593,6 +477,7 @@
             const line = new THREE.Line(geom, mat);
             lineGroup.add(line);
 
+            // Store edge data for easy updates
             edges.push({ mesh: line, nodeA, nodeB });
         });
     }
@@ -603,7 +488,8 @@
         nodes.forEach(node => {
             const d = node.userData;
             const label = document.createElement('div');
-            label.className = 'node-label';
+            // Tailwind classes applied here
+            label.className = 'node-label absolute pointer-events-none -translate-x-1/2 -translate-y-full p-1.5 rounded-md bg-black/70 border border-white/5 text-xs whitespace-nowrap z-30 transition-opacity';
             label.id = `label-${d.id}`;
             label.textContent = d.title;
             d._labelEl = label; // store reference
@@ -621,16 +507,17 @@
 
             const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
             const y = (-tempV.y * 0.5 + 0.5) * window.innerHeight;
-            const visible = node.visible && tempV.z < 1;
+            // Visible if within frustum (z < 1) and its 3D object is set to visible
+            const visible = node.visible && tempV.z < 1; 
 
-            label.style.transform = 'translate(-50%, -100%)';
             label.style.left = `${x}px`;
             label.style.top = `${y}px`;
             label.style.display = visible ? 'block' : 'none';
 
-            // fade based on distance
+            // fade based on distance from camera
             const distance = camera.position.distanceTo(node.position);
-            const opacity = Math.min(1.0, 120 / Math.max(1, distance));
+            // Label opacity fades out between 100 (full opacity) and 300 (zero opacity) distance
+            const opacity = Math.min(1.0, Math.max(0, (300 - distance) / 200));
             label.style.opacity = visible ? opacity : 0;
         });
     }
@@ -639,31 +526,76 @@
     function animate(time) {
         requestAnimationFrame(animate);
 
-        // simple breathing + velocity
-        nodes.forEach(node => {
+        const visibleNodes = nodes.filter(n => n.visible);
+        const t = time || 0; // Ensure time is defined for sine waves
+
+        visibleNodes.forEach(node => {
             const data = node.userData;
-            const pulse = Math.sin((time || 0) * 0.001 + data.animationOffset) * 0.5;
+
+            // 1. Force Simulation Logic
+            if (node !== draggedNode) {
+                // a. Spring Force (pull towards original position)
+                const diffSpring = new THREE.Vector3().subVectors(data.originalPosition, node.position);
+                data.vel.add(diffSpring.multiplyScalar(K_SPRING_CENTER));
+
+                // b. Repulsion Force (push away from every other visible node)
+                const repulsionForce = new THREE.Vector3();
+                visibleNodes.forEach(otherNode => {
+                    if (node.id === otherNode.id) return;
+
+                    const diffRepel = new THREE.Vector3().subVectors(node.position, otherNode.position);
+                    const distanceSq = diffRepel.lengthSq() || 0.1; // avoid division by zero
+                    
+                    // Apply force inversely proportional to distance squared
+                    // The force is stronger when nodes are closer (K_REPEL / distanceSq)
+                    const forceMagnitude = K_REPEL_NODE / distanceSq;
+
+                    repulsionForce.add(diffRepel.normalize().multiplyScalar(forceMagnitude));
+                });
+                data.vel.add(repulsionForce);
+            }
+
+            // 2. Apply velocity and damping
+            node.position.add(data.vel);
+            data.vel.multiplyScalar(VELOCITY_DAMPING); // Smoothly decay velocity
+
+            // 3. Subtle Floating Movement (Organic Jiggle)
+            const floatSpeed = 0.0005;
+            // Very small magnitude (0.005) ensures the movement is barely visible
+            const floatMagnitude = 0.005; 
+            const offset = data.animationOffset;
+
+            node.position.x += Math.sin((t * floatSpeed) + offset) * floatMagnitude;
+            node.position.y += Math.cos((t * floatSpeed * 1.2) + offset) * floatMagnitude;
+            node.position.z += Math.sin((t * floatSpeed * 0.8) + offset) * floatMagnitude;
+
+            // 4. Simple Visual Pulse (Scaling)
+            const pulse = Math.sin(t * 0.001 + offset) * 0.5;
             node.scale.setScalar(1 + pulse * 0.05);
 
-            node.position.add(data.vel);
-            data.vel.multiplyScalar(0.96);
-
-            // keep network bounded
+            // 5. Keep network bounded
             if (node.position.length() > GALAXY_RADIUS * 1.4) {
-                node.position.multiplyScalar(0.995);
+                 // Gently pull back towards the origin if too far out
+                node.position.multiplyScalar(0.995); 
             }
         });
 
         // update edge positions
         edges.forEach(e => {
-            const arr = e.mesh.geometry.attributes.position.array;
-            arr[0] = e.nodeA.position.x;
-            arr[1] = e.nodeA.position.y;
-            arr[2] = e.nodeA.position.z;
-            arr[3] = e.nodeB.position.x;
-            arr[4] = e.nodeB.position.y;
-            arr[5] = e.nodeB.position.z;
-            e.mesh.geometry.attributes.position.needsUpdate = true;
+            // Only update if both connected nodes are visible
+            if (e.nodeA.visible && e.nodeB.visible) {
+                const arr = e.mesh.geometry.attributes.position.array;
+                arr[0] = e.nodeA.position.x;
+                arr[1] = e.nodeA.position.y;
+                arr[2] = e.nodeA.position.z;
+                arr[3] = e.nodeB.position.x;
+                arr[4] = e.nodeB.position.y;
+                arr[5] = e.nodeB.position.z;
+                e.mesh.geometry.attributes.position.needsUpdate = true;
+                e.mesh.visible = true;
+            } else {
+                e.mesh.visible = false;
+            }
         });
 
         controls.update();
@@ -703,14 +635,10 @@
         nodes.forEach(node => {
             const isVisible = filterKey === 'all' || node.userData.category === filterKey;
             node.visible = isVisible;
-            if (node.userData._labelEl) node.userData._labelEl.style.display = isVisible ? 'block' : 'none';
+            // The label visibility update is handled by updateLabels() which checks node.visible
         });
 
-        edges.forEach(edge => {
-            const a = edge.nodeA.visible;
-            const b = edge.nodeB.visible;
-            edge.mesh.visible = a && b;
-        });
+        // Edge visibility is handled within the animate loop based on node visibility
     }
 
     /* ========== Modal logic (robust, mobile-friendly) ========== */
@@ -723,44 +651,48 @@
         // inject content
         modalDetailsDiv.innerHTML = `
             <header>
-                <h3 id="modal-title">${escapeHtml(data.title)}</h3>
-                <p class="category">${escapeHtml(data.category)}</p>
+                <h3 id="modal-title" class="text-xl font-extrabold">${escapeHtml(data.title)}</h3>
+                <p class="category text-xs font-bold uppercase tracking-widest mt-1 mb-3">${escapeHtml(data.category)}</p>
             </header>
-            <div class="image-card">
+            <div class="image-card rounded-xl overflow-hidden shadow-lg mb-4">
                 <img src="${escapeAttr(data.image_path)}" alt="${escapeAttr(data.title)}"
-                     onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Placeholder'">
-                <div class="description">${escapeHtml(data.description)}</div>
+                    class="w-full h-56 object-cover md:h-72"
+                    onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Placeholder'">
+                <div class="description p-3 text-gray-400 text-sm italic">
+                    ${escapeHtml(data.description)}
+                </div>
             </div>
-            <div class="tag-container">
-                ${data.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+            <div class="tag-container flex flex-wrap gap-2 mt-3">
+                ${data.tags.map(t => `<span class="tag text-xs font-bold px-3 py-1 rounded-full text-gray-300">${escapeHtml(t)}</span>`).join('')}
             </div>
-            <div class="color-indicator">
-                <div class="color-swatch" style="background:${escapeAttr(data.color)}"></div>
+            <div class="color-indicator flex gap-2 items-center mt-3 font-mono text-xs">
+                <div class="color-swatch w-4 h-4 rounded-full border border-white/10" style="background:${escapeAttr(data.color)}"></div>
                 <div style="opacity:0.9">${escapeHtml(data.color)}</div>
             </div>
         `;
 
         actionMessage.style.display = 'none';
+        projectModal.classList.remove('hidden');
         projectModal.style.display = 'flex';
-        // focus full project button for keyboard/mobile convenience
         fullProjectBtn.focus();
     }
 
     function closeProjectModal() {
         isModalOpen = false;
         projectModal.style.display = 'none';
+        projectModal.classList.add('hidden');
         document.body.style.overflow = ''; // restore
     }
 
     function handleFullProjectClick() {
         if (!currentProjectUrl) return;
         actionMessage.textContent = `Opening ${currentProjectUrl}`;
-        actionMessage.style.display = 'block';
+        actionMessage.classList.remove('hidden');
         // open in new tab/window
         window.open(currentProjectUrl, '_blank', 'noopener');
         // close modal after short delay so the user can see the action message
         setTimeout(() => {
-            actionMessage.style.display = 'none';
+            actionMessage.classList.add('hidden');
             closeProjectModal();
         }, 900);
     }
@@ -773,7 +705,8 @@
             .replace(/>/g, '&gt;');
     }
     function escapeAttr(str = '') {
-        return escapeHtml(str).replace(/"/g, '&quot;');
+        // Ensures proper escaping for HTML attributes like src or style values
+        return escapeHtml(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     /* ---------- Start ---------- */
