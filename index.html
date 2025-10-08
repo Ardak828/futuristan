@@ -24,7 +24,7 @@
         
         /* Define CSS Variables for modal/panel consistency */
         :root {
-            --panel: #111827;
+            --panel: #000000; /* <-- CHANGE THIS HEX CODE FOR MODAL BACKGROUND */
             --muted: #9ca3af;
             --accent: #4f46e5;
         }
@@ -76,7 +76,7 @@
     <div id="top-nav-container" class="fixed top-4 left-4 z-40 flex gap-3 items-center">
         <div id="filter-group">
             <select id="category-filter" aria-label="Filter projects"
-                class="p-2 rounded-xl border border-white/10 bg-white/5 text-white font-bold text-sm min-w-[12rem] focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+                class="p-2 rounded-xl border border-white/10 bg-black/5 text-white font-bold text-sm min-w-[12rem] focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
             </select>
         </div>
         <button id="about-btn" class="p-2 rounded-xl border border-white/10 bg-white/5 text-white font-bold text-sm hover:bg-white/10 transition">
@@ -97,9 +97,9 @@
                 The system uses a custom physics simulation to keep nodes separated while ensuring they remain anchored to their original, random positions. The orbital movement adds a sense of life and dynamism to the static data structure.
             </p>
             <ul class="list-disc list-inside text-gray-400 pl-4 mb-6 space-y-2">
-                <li>**Interact:** Drag the canvas to change perspective.</li>
-                <li>**Explore:** Click a node to view its detailed description and image.</li>
-                <li>**Filter:** Use the category menu in the top left to categorize the displayed nodes.</li>
+                <li>Drag the canvas to change perspective.</li>
+                <li>Click a node to view its detailed description and image.</li>
+                <li>Use the category menu in the top left to categorize the displayed nodes.</li>
             </ul>
             <button id="backToNetworkBtn" class="mt-4 py-2 px-6 rounded-xl border-none cursor-pointer font-extrabold text-base bg-indigo-600 text-white hover:bg-indigo-700 transition">
                 Back to Network View
@@ -111,7 +111,7 @@
     <!-- Modal (Tailwind classes applied) -->
     <div id="projectModal" role="dialog" aria-modal="true" aria-labelledby="modal-title"
         class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto hidden">
-        <div class="backdrop absolute inset-0 bg-gray-900/80" id="modalBackdrop"></div>
+        <div class="backdrop absolute inset-0 bg-gray-900/60" id="modalBackdrop"></div>
         
         <!-- Navigation Buttons: positioned fixed for large tap targets -->
         <button id="prevProjectBtn" class="fixed left-4 md:left-8 top-1/2 -translate-y-1/2 p-4 z-[51] rounded-full bg-white/5 hover:bg-white/10 text-white transition ring-2 ring-white/10" aria-label="Previous project">
@@ -148,15 +148,15 @@
     /* ========== CORE DATA (unchanged semantic structure) ========== */
     const ARTWORKS = [
         { id: 0, title: "Neo-Tengri", category: "Virtual Reality", tags: ["#3D", "#SciFi", "#VR"], color: '#A0A0A0', url: "https://ardakmukanova.com/neotengri", description: "Neo Tengri is a speculative VR project, a game space about mythological nomadic creatures.", image_path: "images/0000_Layer-Comp-1.png" },
-        { id: 1, title: "Glyphs of Another World", category: "Digital Sculpture", tags: ["#Particles", "#Monochrome", "#Face"], color: '#B0B0B0', url: "https://ardakmukanova.com/glyphs", description: "Glyphs of Another World aims to build a digital myth inspired by the history of nomadic shamanism and ancient petroglyphs.", image_path: "images/0001_Layer-Comp-2.png" },
-        { id: 2, title: "Aulie-Agash", category: "Abstract Expressionism", tags: ["#Liquid", "#Vibrant", "#Topology"], color: '#C0C0C0', url: "https://futuristan.cargo.site", description: "We went to the sacred tree, which has been welcoming pilgrims for 700 years, in order to establish a special connection with it using algorithms and technology, to hear the voice of this special sacred place, and to find the frequency at which Aulie Agash resonates.", image_path: "images/0002_Layer-Comp-3.png" },
-        { id: 3, title: "Annihilation", category: "Data Visualization", tags: ["#LiDAR", "#Monochrome", "#Clean"], color: '#D0C0C0', url: "https://ardakmukanova.com/annihilation", description: "Annihilation is a VR project made to represent a speculative world without a human-centered presence, based on the small microorganisms of our galaxy to illustrate the unknown environment and feeling.", image_path: "images/0003_Layer-Comp-4.png" },
-        { id: 4, title: "Phantom Vault", category: "Figurative Particles", tags: ["#Music", "#Aura", "#Synth"], color: '#E0D0D0', url: "https://ardakmukanova.com/phantom-vault", description: "Phantom Vault presents a speculative bestiary of mythological creatures transformed through the spiraling effects of time, ecological collapse, and the remnants of human influence.", image_path: "images/0004_Layer-Comp-5.png" },
-        { id: 5, title: "Oyu Resonance", category: "Digital Flora", tags: ["#Neon", "#Organic", "#Growth"], color: '#F0E0E0', url: "https://www.instagram.com/p/DPX8j8TjP_3/?utm_source=ig_web_copy_link&igsh=MzRlODBiNWFlZA==", description: "This project explores the transformation of traditional Kazakh ornaments into sound through Max/MSP. By translating visual patterns into audible frequencies, the algorithm allows us to hear the hidden resonance of these ancient forms.", image_path: "images/0005_Layer-Comp-6.png" },
-        { id: 6, title: "Tamgaly", category: "3D Modeling", tags: ["#Sculpture", "#Hollow", "#Void"], color: '#F8F8F8', url: "https://ardakmukanova.com/tamgaly", description: "We go inside the small world of the statue to see molecular transformations, which refer to ancient wall paintings in Kazakhstan.", image_path: "images/0006_Layer-Comp-7.png" },
-        { id: 7, title: "Neurolinguistics", category: "Abstract 3D", tags: ["#Planets", "#Rings", "#Water"], color: '#FEFEFE', url: "https://ardakmukanova.com/neurolinguistics", description: "Neurolinguistics course consists of seven modules and lectured by ten international specialists in neuroscience: Tatiana Chernigovskaya, Turid Helland, Kenneth Hugdahl, Kira Gor, Kirill Nourski, and others.", image_path: "images/0007_Layer-Comp-8.png" },
+        { id: 1, title: "Glyphs of Another World", category: "Digital Worlds", tags: ["#Particles", "#Monochrome", "#Face"], color: '#B0B0B0', url: "https://ardakmukanova.com/glyphs", description: "Glyphs of Another World aims to build a digital myth inspired by the history of nomadic shamanism and ancient petroglyphs.", image_path: "images/0001_Layer-Comp-2.png" },
+        { id: 2, title: "Aulie-Agash", category: "Abstract Legends", tags: ["#Liquid", "#Vibrant", "#Topology"], color: '#C0C0C0', url: "https://futuristan.cargo.site", description: "We went to the sacred tree, which has been welcoming pilgrims for 700 years, in order to establish a special connection with it using algorithms and technology, to hear the voice of this special sacred place, and to find the frequency at which Aulie Agash resonates.", image_path: "images/0002_Layer-Comp-3.png" },
+        { id: 3, title: "Annihilation", category: "Virtual Reality", tags: ["#LiDAR", "#Monochrome", "#Clean"], color: '#D0C0C0', url: "https://ardakmukanova.com/annihilation", description: "Annihilation is a VR project made to represent a speculative world without a human-centered presence, based on the small microorganisms of our galaxy to illustrate the unknown environment and feeling.", image_path: "images/0003_Layer-Comp-4.png" },
+        { id: 4, title: "Phantom Vault", category: "Ecological Simulations", tags: ["#Music", "#Aura", "#Synth"], color: '#E0D0D0', url: "https://ardakmukanova.com/phantom-vault", description: "Phantom Vault presents a speculative bestiary of mythological creatures transformed through the spiraling effects of time, ecological collapse, and the remnants of human influence.", image_path: "images/0004_Layer-Comp-5.png" },
+        { id: 5, title: "Oyu Resonance", category: "Sonification", tags: ["#Neon", "#Organic", "#Growth"], color: '#F0E0E0', url: "https://www.instagram.com/p/DPX8j8TjP_3/?utm_source=ig_web_copy_link&igsh=MzRlODBiNWFlZA==", description: "This project explores the transformation of traditional Kazakh ornaments into sound through Max/MSP. By translating visual patterns into audible frequencies, the algorithm allows us to hear the hidden resonance of these ancient forms.", image_path: "images/0005_Layer-Comp-6.png" },
+        { id: 6, title: "Tamgaly", category: "Digital Worlds", tags: ["#Sculpture", "#Hollow", "#Void"], color: '#F8F8F8', url: "https://ardakmukanova.com/tamgaly", description: "We go inside the small world of the statue to see molecular transformations, which refer to ancient wall paintings in Kazakhstan.", image_path: "images/0006_Layer-Comp-7.png" },
+        { id: 7, title: "Neurolinguistics", category: "Art & Science", tags: ["#Planets", "#Rings", "#Water"], color: '#FEFEFE', url: "https://ardakmukanova.com/neurolinguistics", description: "Neurolinguistics course consists of seven modules and lectured by ten international specialists in neuroscience: Tatiana Chernigovskaya, Turid Helland, Kenneth Hugdahl, Kira Gor, Kirill Nourski, and others.", image_path: "images/0007_Layer-Comp-8.png" },
         { id: 8, title: "Jerūiyq: Journey Beyond the Horizon", category: "Data Visualization", tags: ["#Code", "#Network", "#Chaos"], color: '#FFFFFF', url: "https://ardakmukanova.com/jeruiyq", description: "Jerūiyq is a promised land from Kazakh legend, passed down from the fifteenth century through generations of oral tradition. It serves as a metaphor for searching, exploration, improvement, and invisible knowledge.", image_path: "images/0008_Layer-Comp-9.png" },
-        { id: 9, title: "NeoDada", category: "Digital Painting", tags: ["#Retro", "#Vapor", "#Glitch"], color: '#EBEBEB', url: "https://ardakmukanova.com/neo-dada", description: "NeoDada is a contemporary graphic poetry book inspired by the work of dadaists.", image_path: "images/0009_Layer-Comp-10.png" },
+        { id: 9, title: "NeoDada", category: "Digital Publications", tags: ["#Retro", "#Vapor", "#Glitch"], color: '#EBEBEB', url: "https://ardakmukanova.com/neo-dada", description: "NeoDada is a contemporary graphic poetry book inspired by the work of dadaists.", image_path: "images/0009_Layer-Comp-10.png" },
     ];
 
     const EDGES = [
@@ -870,6 +870,7 @@
     </script>
 </body>
 </html>
+
 
 
 
