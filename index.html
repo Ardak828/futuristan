@@ -66,12 +66,13 @@
 </head>
 <body>
     <!-- Instructions (Tailwind classes applied) -->
-    <div id="instructions" class="fixed top-4 left-1/2 -translate-x-1/2 z-40 bg-white/10 text-gray-300 p-2 rounded-xl font-semibold text-sm backdrop-blur-sm transition-opacity">
+<!--    <div id="instructions" class="fixed top-4 left-1/2 -translate-x-1/2 z-40 bg-white/10 text-gray-300 p-2 rounded-xl font-semibold text-sm backdrop-blur-sm transition-opacity">
         <div class="font-extrabold text-[#dfe3ff]">3D Network Explorer</div>
         <div class="text-xs mt-1 text-gray-300">
             Drag to orbit — Click / Tap a sphere to open details
         </div>
-    </div>
+    </div> 
+    -->
 
     <!-- Top Navigation Container (Filter + About Button) -->
     <div id="top-nav-container" class="fixed top-4 left-4 z-40 flex gap-3 items-center">
@@ -182,9 +183,9 @@
         // Increasing this (e.g., to 1000) makes the starfield appear more sparse and distant.
         GENERATION_RADIUS: 800,
         // 6. MOVEMENT SPEED: How fast the stars subtle orbit/drift. (Lower is slower)
-        STAR_ORBIT_SPEED: 0.001, 
+        STAR_ORBIT_SPEED: 0.0005, 
         // 7. MOVEMENT DISTANCE: The maximum distance the stars drift from their original position.
-        STAR_MAX_DRIFT: 30
+        STAR_MAX_DRIFT: 10
     };
 
     /* ========== THREE.JS STATE & FORCE CONSTANTS ========== */
@@ -192,6 +193,7 @@
     let raycaster, mouse;
     let nodeGroup, lineGroup;
     let nodes = [], edges = [];
+    let starsMesh;
     const NODE_RADIUS = 9;
     const GALAXY_RADIUS = 150;
     const CLICK_THRESHOLD = 25; // pixels
@@ -891,6 +893,7 @@
     </script>
 </body>
 </html>
+
 
 
 
