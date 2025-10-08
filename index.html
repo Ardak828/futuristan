@@ -179,6 +179,7 @@
     const K_SPRING_CENTER = 0.00015;
     const K_REPEL_NODE = 25;
     const VELOCITY_DAMPING = 0.98;
+    const MAX_VELOCITY = 1.5;
 
     let draggedNode = null;
     let plane = new THREE.Plane();
@@ -693,6 +694,9 @@
             }
 
             // 2. Apply velocity and damping
+            if (data.vel.length() > MAX_VELOCITY) {
+            data.vel.normalize().multiplyScalar(MAX_VELOCITY); // <--- STABILITY FIX (NEW)
+            }
             node.position.add(data.vel);
             data.vel.multiplyScalar(VELOCITY_DAMPING);
 
@@ -866,6 +870,7 @@
     </script>
 </body>
 </html>
+
 
 
 
