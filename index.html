@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>3D Interactive Art Network</title>
+    <title>futuristan</title>
     <!-- Load Tailwind CSS for modern, utility-first styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -72,19 +72,52 @@
         </div>
     </div>
 
-    <!-- Filter Menu (Tailwind classes applied) -->
-    <div id="nav-container" class="fixed top-4 left-4 z-40">
-        <select id="category-filter" aria-label="Filter projects"
-            class="p-2 rounded-xl border border-white/10 bg-white/5 text-white font-bold text-sm min-w-[12rem] focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
-        </select>
+    <!-- Top Navigation Container (Filter + About Button) -->
+    <div id="top-nav-container" class="fixed top-4 left-4 z-40 flex gap-3 items-center">
+        <div id="filter-group">
+            <select id="category-filter" aria-label="Filter projects"
+                class="p-2 rounded-xl border border-white/10 bg-white/5 text-white font-bold text-sm min-w-[12rem] focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+            </select>
+        </div>
+        <button id="about-btn" class="p-2 rounded-xl border border-white/10 bg-white/5 text-white font-bold text-sm hover:bg-white/10 transition">
+            About
+        </button>
     </div>
 
     <div id="label-container" style="pointer-events:none;"></div>
+
+    <!-- About Content View (New Page) -->
+    <div id="aboutContent" class="absolute inset-0 z-30 flex items-center justify-center p-4 md:p-8 hidden">
+        <div class="max-w-3xl w-full bg-[#0a0a0a] p-8 md:p-12 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-sm">
+            <h2 class="text-4xl font-extrabold text-indigo-400 mb-6">About the 3D Interactive Art Network</h2>
+            <p class="text-gray-300 mb-4 text-lg leading-relaxed">
+                This explorer visualizes a distributed network of digital artworks and data sets. Each **sphere (node)** represents a unique project, and the **connecting lines (edges)** symbolize conceptual or technical dependencies between them.
+            </p>
+            <p class="text-gray-400 mb-4 leading-relaxed">
+                The system uses a custom **physics simulation** to keep nodes separated (repulsion force) while ensuring they remain anchored to their original, random positions (spring force). The subtle, random **orbital movement** adds a sense of life and dynamism to the static data structure.
+            </p>
+            <ul class="list-disc list-inside text-gray-400 pl-4 mb-6 space-y-2">
+                <li>**Interact:** Drag the canvas to change perspective.</li>
+                <li>**Explore:** Click a node to view its detailed description and image.</li>
+                <li>**Filter:** Use the category menu in the top left to categorize the displayed nodes.</li>
+            </ul>
+            <button id="backToNetworkBtn" class="mt-4 py-2 px-6 rounded-xl border-none cursor-pointer font-extrabold text-base bg-indigo-600 text-white hover:bg-indigo-700 transition">
+                Back to Network View
+            </button>
+        </div>
+    </div>
+
 
     <!-- Modal (Tailwind classes applied) -->
     <div id="projectModal" role="dialog" aria-modal="true" aria-labelledby="modal-title"
         class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto hidden">
         <div class="backdrop absolute inset-0 bg-gray-900/80" id="modalBackdrop"></div>
+        
+        <!-- Navigation Buttons: positioned fixed for large tap targets -->
+        <button id="prevProjectBtn" class="fixed left-4 md:left-8 top-1/2 -translate-y-1/2 p-4 z-[51] rounded-full bg-white/5 hover:bg-white/10 text-white transition ring-2 ring-white/10" aria-label="Previous project">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+        </button>
+
         <div class="panel relative w-11/12 max-w-xl rounded-xl border border-white/5 shadow-2xl p-6 text-gray-100 m-8 z-50" role="document">
             
             <!-- Close Button -->
@@ -105,21 +138,25 @@
                 <p id="actionMessage" class="mt-2 text-gray-400 text-sm hidden">Opening project...</p>
             </div>
         </div>
+
+        <button id="nextProjectBtn" class="fixed right-4 md:right-8 top-1/2 -translate-y-1/2 p-4 z-[51] rounded-full bg-white/5 hover:bg-white/10 text-white transition ring-2 ring-white/10" aria-label="Next project">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+        </button>
     </div>
 
     <script>
     /* ========== CORE DATA (unchanged semantic structure) ========== */
     const ARTWORKS = [
-        { id: 0, title: "Conceptual Art - Light Form", category: "Conceptual Art", tags: ["#3D", "#SciFi", "#Light"], color: '#A0A0A0', url: "https://www.google.com/search?q=Conceptual+Art", description: "Explores the interplay between perceived reality and light's formless nature. A decentralized ledger of light-based art experiments.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
-        { id: 1, title: "Digital Portrait Study", category: "Digital Sculpture", tags: ["#Particles", "#Monochrome", "#Face"], color: '#B0B0B0', url: "https://www.google.com/search?q=Digital+Sculpture", description: "A dynamic study of the human form rendered entirely through particle systems, constantly shifting and reforming. This node holds the original source code.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
-        { id: 2, title: "Wireframe Structure", category: "Abstract Expressionism", tags: ["#Liquid", "#Vibrant", "#Topology"], color: '#C0C0C0', url: "https://www.google.com/search?q=Abstract+Expressionism", description: "A chaotic yet beautiful expression of connectivity, visualizing network traffic as liquid wireframes. Part of the 'Flow' collection.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
-        { id: 3, title: "Minimalist Grid", category: "Data Visualization", tags: ["#LiDAR", "#Monochrome", "#Clean"], color: '#D0C0C0', url: "https://www.google.com/search?q=Data+Visualization", description: "A clean, responsive visualization of sensor data. The grid represents data points recorded over a 24-hour period.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
-        { id: 4, title: "Geometric Abstraction", category: "Figurative Particles", tags: ["#Music", "#Aura", "#Synth"], color: '#E0D0D0', url: "https://www.google.com/search?q=Geometric+Abstraction", description: "Artwork generated by feeding musical frequency data into a geometric algorithm. It changes form based on the last recorded sound input.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
-        { id: 5, title: "Blue and Gold Swirl", category: "Digital Flora", tags: ["#Neon", "#Organic", "#Growth"], color: '#F0E0E0', url: "https://www.google.com/search?q=Digital+Flora", description: "A simulation of digital organic growth, where the swirl patterns are dictated by L-systems. Represents a seed for future bio-digital creations.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
-        { id: 6, title: "Sphere in Darkness", category: "3D Modeling", tags: ["#Sculpture", "#Hollow", "#Void"], color: '#F8F8F8', url: "https://www.google.com/search?q=3D+Modeling", description: "A study in negative space and volumetric light. The sphere is a hollow vessel, symbolizing untapped potential within the network.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
-        { id: 7, title: "Digital Ocean", category: "Abstract 3D", tags: ["#Planets", "#Rings", "#Water"], color: '#FEFEFE', url: "https://www.google.com/search?q=Abstract+3D", description: "Rendering of an abstract planetary body composed entirely of undulating digital waves. It serves as an archive for water-themed generative art.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=ART+PIECE" },
-        { id: 8, title: "Red Web Structure", category: "Data Visualization", tags: ["#Code", "#Network", "#Chaos"], color: '#FFFFFF', url: "https://www.google.com/search?q=Network+Data", description: "A visualization of chaotic network failure points, highlighting areas of high stress and latency in a vibrant red hue.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=PROJECT" },
-        { id: 9, title: "Complex Pattern", category: "Digital Painting", tags: ["#Retro", "#Vapor", "#Glitch"], color: '#EBEBEB', url: "https://www.google.com/search?q=Digital+Painting", description: "An intricate pattern that mimics old-school vector art with digital decay effects. The core pattern evolves daily.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=DATA+NODE" },
+        { id: 0, title: "Conceptual Art - Light Form", category: "Conceptual Art", tags: ["#3D", "#SciFi", "#Light"], color: '#A0A0A0', url: "https://www.google.com/search?q=Conceptual+Art", description: "Explores the interplay between perceived reality and light's formless nature. A decentralized ledger of light-based art experiments.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=NODE+0" },
+        { id: 1, title: "Digital Portrait Study", category: "Digital Sculpture", tags: ["#Particles", "#Monochrome", "#Face"], color: '#B0B0B0', url: "https://www.google.com/search?q=Digital+Sculpture", description: "A dynamic study of the human form rendered entirely through particle systems, constantly shifting and reforming. This node holds the original source code.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=NODE+1" },
+        { id: 2, title: "Wireframe Structure", category: "Abstract Expressionism", tags: ["#Liquid", "#Vibrant", "#Topology"], color: '#C0C0C0', url: "https://www.google.com/search?q=Abstract+Expressionism", description: "A chaotic yet beautiful expression of connectivity, visualizing network traffic as liquid wireframes. Part of the 'Flow' collection.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=NODE+2" },
+        { id: 3, title: "Minimalist Grid", category: "Data Visualization", tags: ["#LiDAR", "#Monochrome", "#Clean"], color: '#D0C0C0', url: "https://www.google.com/search?q=Data+Visualization", description: "A clean, responsive visualization of sensor data. The grid represents data points recorded over a 24-hour period.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=NODE+3" },
+        { id: 4, title: "Geometric Abstraction", category: "Figurative Particles", tags: ["#Music", "#Aura", "#Synth"], color: '#E0D0D0', url: "https://www.google.com/search?q=Geometric+Abstraction", description: "Artwork generated by feeding musical frequency data into a geometric algorithm. It changes form based on the last recorded sound input.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=NODE+4" },
+        { id: 5, title: "Blue and Gold Swirl", category: "Digital Flora", tags: ["#Neon", "#Organic", "#Growth"], color: '#F0E0E0', url: "https://www.google.com/search?q=Digital+Flora", description: "A simulation of digital organic growth, where the swirl patterns are dictated by L-systems. Represents a seed for future bio-digital creations.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=NODE+5" },
+        { id: 6, title: "Sphere in Darkness", category: "3D Modeling", tags: ["#Sculpture", "#Hollow", "#Void"], color: '#F8F8F8', url: "https://www.google.com/search?q=3D+Modeling", description: "A study in negative space and volumetric light. The sphere is a hollow vessel, symbolizing untapped potential within the network.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=NODE+6" },
+        { id: 7, title: "Digital Ocean", category: "Abstract 3D", tags: ["#Planets", "#Rings", "#Water"], color: '#FEFEFE', url: "https://www.google.com/search?q=Abstract+3D", description: "Rendering of an abstract planetary body composed entirely of undulating digital waves. It serves as an archive for water-themed generative art.", image_path: "https://placehold.co/600x400/4B5563/FFFFFF?text=NODE+7" },
+        { id: 8, title: "Red Web Structure", category: "Data Visualization", tags: ["#Code", "#Network", "#Chaos"], color: '#FFFFFF', url: "https://www.google.com/search?q=Network+Data", description: "A visualization of chaotic network failure points, highlighting areas of high stress and latency in a vibrant red hue.", image_path: "https://placehold.co/600x400/374151/FFFFFF?text=NODE+8" },
+        { id: 9, title: "Complex Pattern", category: "Digital Painting", tags: ["#Retro", "#Vapor", "#Glitch"], color: '#EBEBEB', url: "https://www.google.com/search?q=Digital+Painting", description: "An intricate pattern that mimics old-school vector art with digital decay effects. The core pattern evolves daily.", image_path: "https://placehold.co/600x400/888888/FFFFFF?text=NODE+9" },
     ];
 
     const EDGES = [
@@ -130,7 +167,7 @@
     ];
 
     /* ========== THREE.JS STATE & FORCE CONSTANTS ========== */
-    let scene, camera, renderer, controls;
+    let scene, camera, renderer, controls, canvasElement;
     let raycaster, mouse;
     let nodeGroup, lineGroup;
     let nodes = [], edges = [];
@@ -139,9 +176,9 @@
     const CLICK_THRESHOLD = 25; // pixels
 
     // Force Simulation Constants
-    const K_SPRING_CENTER = 0.0001; // Force pulling node to its original calculated position
-    const K_REPEL_NODE = 25;        // Force pushing nodes away from each other
-    const VELOCITY_DAMPING = 0.98;  // Damping for velocity (flick/force decay)
+    const K_SPRING_CENTER = 0.00015;
+    const K_REPEL_NODE = 25;
+    const VELOCITY_DAMPING = 0.98;
 
     let draggedNode = null;
     let plane = new THREE.Plane();
@@ -151,28 +188,36 @@
     let isModalOpen = false;
     let currentProjectUrl = '';
     const tempV = new THREE.Vector3();
+    let currentProjectIndex = -1;
 
-    // Modal elements
+    // View management state
+    let currentView = 'network'; // 'network' or 'about'
+
+    // Modal and UI elements
     const projectModal = document.getElementById('projectModal');
     const modalBackdrop = document.getElementById('modalBackdrop');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
     const modalDetailsDiv = document.getElementById('modal-project-details');
     const fullProjectBtn = document.getElementById('fullProjectBtn');
     const actionMessage = document.getElementById('actionMessage');
+    let prevProjectBtn, nextProjectBtn;
+    
+    // New page elements
+    let aboutContent, aboutBtn, backToNetworkBtn, instructions, filterGroup;
+
 
     /* ---------- Helpers for pointer coordinates (mouse & touch) ---------- */
     function getPointerCoordinates(event, isEnd = false) {
         // returns { clientX, clientY } and sets mouse.x / mouse.y for raycasting
         const rect = renderer.domElement.getBoundingClientRect();
         let clientX = 0, clientY = 0;
-        // for touchend use changedTouches
         const pointer = (isEnd ? (event.changedTouches && event.changedTouches[0]) : (event.touches && event.touches[0])) || event;
         if (pointer) {
             clientX = pointer.clientX;
             clientY = pointer.clientY;
         } else {
             clientX = event.clientX || 0;
-            clientY = event.clientY || 0;
+            clientY = event.clientX || 0;
         }
         mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
@@ -181,6 +226,7 @@
 
     /* ---------- Initialization ---------- */
     function init() {
+        // Initialize Three.js components
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x000000);
         scene.fog = new THREE.FogExp2(0x000000, 0.0006);
@@ -191,10 +237,11 @@
         renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.domElement.style.touchAction = 'none'; // important for mobile touch handling
+        renderer.domElement.style.touchAction = 'none';
         document.body.appendChild(renderer.domElement);
+        canvasElement = renderer.domElement; // Store reference to canvas
 
-        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls = new THREE.OrbitControls(camera, canvasElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
         controls.minDistance = 50;
@@ -214,52 +261,106 @@
         scene.add(nodeGroup);
         scene.add(lineGroup);
 
+        // Core Content Creation
         createBackgroundStars(900);
         createGalaxyNetwork();
         createLabels();
         populateFilterMenu();
+        
+        // UI element references
+        aboutContent = document.getElementById('aboutContent');
+        aboutBtn = document.getElementById('about-btn');
+        backToNetworkBtn = document.getElementById('backToNetworkBtn');
+        instructions = document.getElementById('instructions');
+        filterGroup = document.getElementById('filter-group');
+        prevProjectBtn = document.getElementById('prevProjectBtn');
+        nextProjectBtn = document.getElementById('nextProjectBtn');
 
-        // listeners
+
+        // Event listeners
         window.addEventListener('resize', onWindowResize, false);
-        const canvas = renderer.domElement;
-
-        // Use pointer events where supported for unified handling; fallback to touch/mouse
+        
+        // Pointer events for 3D interaction
         if (window.PointerEvent) {
-            canvas.addEventListener('pointerdown', onPointerDown, { passive: false });
-            canvas.addEventListener('pointermove', onPointerMove, { passive: false });
-            canvas.addEventListener('pointerup', onPointerUp, { passive: false });
-            canvas.addEventListener('pointercancel', onPointerUp, { passive: false });
+            canvasElement.addEventListener('pointerdown', onPointerDown, { passive: false });
+            canvasElement.addEventListener('pointermove', onPointerMove, { passive: false });
+            canvasElement.addEventListener('pointerup', onPointerUp, { passive: false });
+            canvasElement.addEventListener('pointercancel', onPointerUp, { passive: false });
         } else {
-            canvas.addEventListener('mousedown', onPointerDown, { passive: false });
-            canvas.addEventListener('mousemove', onPointerMove, { passive: false });
-            canvas.addEventListener('mouseup', onPointerUp, { passive: false });
+            canvasElement.addEventListener('mousedown', onPointerDown, { passive: false });
+            canvasElement.addEventListener('mousemove', onPointerMove, { passive: false });
+            canvasElement.addEventListener('mouseup', onPointerUp, { passive: false });
 
-            canvas.addEventListener('touchstart', onPointerDown, { passive: false });
-            canvas.addEventListener('touchmove', onPointerMove, { passive: false });
-            canvas.addEventListener('touchend', onPointerUp, { passive: false });
-            canvas.addEventListener('touchcancel', onPointerUp, { passive: false });
+            canvasElement.addEventListener('touchstart', onPointerDown, { passive: false });
+            canvasElement.addEventListener('touchmove', onPointerMove, { passive: false });
+            canvasElement.addEventListener('touchend', onPointerUp, { passive: false });
+            canvasElement.addEventListener('touchcancel', onPointerUp, { passive: false });
         }
 
-        // modal controls
+        // Modal controls
         modalBackdrop.onclick = closeProjectModal;
         modalCloseBtn.onclick = closeProjectModal;
         fullProjectBtn.onclick = handleFullProjectClick;
+        prevProjectBtn.onclick = () => navigateProject(-1);
+        nextProjectBtn.onclick = () => navigateProject(1);
+
+        // NEW: View controls
+        aboutBtn.onclick = () => showView('about');
+        backToNetworkBtn.onclick = () => showView('network');
+
 
         // fade out instructions after a few seconds
         setTimeout(() => {
-            const el = document.getElementById('instructions');
-            if (el) el.style.opacity = '0';
+            if (instructions) instructions.style.opacity = '0';
         }, 6000);
-
+        
+        // Set initial view to network
+        showView('network'); 
         animate();
     }
+    
+    /**
+     * Toggles visibility between the 3D network view and the static About view.
+     * @param {string} viewName - 'network' or 'about'
+     */
+    function showView(viewName) {
+        currentView = viewName;
+        
+        const isNetwork = viewName === 'network';
+        
+        // 1. Canvas (3D Scene)
+        canvasElement.style.display = isNetwork ? 'block' : 'none';
+        
+        // 2. Network-specific UI
+        instructions.style.display = isNetwork ? 'block' : 'none';
+        filterGroup.style.display = isNetwork ? 'block' : 'none';
+        aboutBtn.textContent = isNetwork ? 'About' : 'Network'; // Toggle button text for clearer navigation
+        
+        // 3. About Page UI
+        aboutContent.classList.toggle('hidden', isNetwork);
+        
+        // 4. 3D Controls
+        controls.enabled = isNetwork;
+        
+        // If switching from network, close modal just in case
+        if (!isNetwork && isModalOpen) {
+            closeProjectModal();
+        }
+        
+        // If switching to network, ensure about button reverts text
+        if (isNetwork) {
+            aboutBtn.textContent = 'About';
+        } else {
+            aboutBtn.textContent = 'Network';
+        }
+    }
+
 
     /**
      * Creates a circular texture using the Canvas API.
-     * This texture is applied to PointsMaterial to render points as smooth circles.
      */
     function createCircleTexture() {
-        const size = 64; // Texture resolution
+        const size = 64;
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
@@ -276,7 +377,7 @@
 
     /* ---------- Event handlers ---------- */
     function onPointerDown(event) {
-        if (isModalOpen) return;
+        if (isModalOpen || currentView !== 'network') return;
         event.preventDefault();
         const p = getPointerCoordinates(event, false);
         clickStartScreen.x = p.clientX;
@@ -308,7 +409,7 @@
     }
 
     function onPointerMove(event) {
-        if (isModalOpen) return;
+        if (isModalOpen || currentView !== 'network') return;
         event.preventDefault();
         getPointerCoordinates(event, false);
 
@@ -334,20 +435,20 @@
             });
 
             if (intersects.length > 0) {
-                renderer.domElement.style.cursor = 'pointer';
+                canvasElement.style.cursor = 'pointer';
                 const top = intersects[0].object;
                 if (top.material && top.material.emissive) {
                     // Highlight on hover
                     top.material.emissive.set(0x00ffcc);
                 }
             } else {
-                renderer.domElement.style.cursor = 'grab';
+                canvasElement.style.cursor = 'grab';
             }
         }
     }
 
     function onPointerUp(event) {
-        if (isModalOpen) return;
+        if (isModalOpen || currentView !== 'network') return;
         event.preventDefault();
         const p = getPointerCoordinates(event, true);
 
@@ -374,7 +475,7 @@
             draggedNode = null;
             controls.enabled = true;
         } else {
-            // If pointer up without previously pressing a node, check if we released on a node (fast tap without down intersect due to slight finger movement)
+            // If pointer up without previously pressing a node, check if we released on a node
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(nodeGroup.children, false);
             if (intersects.length > 0) {
@@ -409,16 +510,15 @@
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
         
-        // Use the circular texture for the stars
         const starTexture = createCircleTexture();
 
         const material = new THREE.PointsMaterial({
-            size: 1.5, // Slightly increased size for visibility
+            size: 1.5,
             vertexColors: true,
             transparent: true,
             sizeAttenuation: true,
-            blending: THREE.AdditiveBlending, // essential for glow/overlap
-            map: starTexture // Apply the circular texture
+            blending: THREE.AdditiveBlending,
+            map: starTexture
         });
 
         const stars = new THREE.Points(geometry, material);
@@ -426,7 +526,8 @@
     }
 
     function createGalaxyNetwork() {
-        const sphereGeo = new THREE.SphereGeometry(NODE_RADIUS, 24, 24);
+        const sphereGeo = new THREE.SphereGeometry(NODE_RADIUS, 32, 32);
+        const textureLoader = new THREE.TextureLoader();
 
         ARTWORKS.forEach(data => {
             // random spherical placement inside radius
@@ -438,7 +539,6 @@
                 color: new THREE.Color(data.color),
                 metalness: 0.08,
                 roughness: 0.45,
-                // Initial low emissive value for subtle glow
                 emissive: new THREE.Color(data.color).multiplyScalar(0.14)
             });
 
@@ -449,13 +549,32 @@
                 r * Math.cos(phi)
             );
 
+            // Load Texture/Placeholder Image
+            textureLoader.load(
+                data.image_path,
+                (texture) => {
+                    sphere.material.map = texture;
+                    sphere.material.color.set(0xffffff); 
+                    sphere.material.needsUpdate = true;
+                },
+                undefined,
+                (error) => {
+                    console.error(`Error loading texture for node ${data.id}:`, error);
+                    sphere.material.color.set(data.color);
+                    sphere.material.needsUpdate = true;
+                }
+            );
+
             // store extended userData
             sphere.userData = {
                 ...data,
                 originalPosition: sphere.position.clone(),
                 animationOffset: Math.random() * Math.PI * 2,
-                vel: new THREE.Vector3(0,0,0), // Velocity vector for forces
-                isNode: true
+                vel: new THREE.Vector3(0,0,0),
+                isNode: true,
+                // Orbital parameters
+                orbitRadius: Math.random() * 2 + 1.5,
+                orbitSpeed: Math.random() * 0.0005 + 0.0002,
             };
 
             nodeGroup.add(sphere);
@@ -468,7 +587,6 @@
             const nodeB = nodes.find(n => n.userData.id === edge.to);
             if (!nodeA || !nodeB) return;
 
-            // use dynamic buffer geometry (6 floats)
             const positions = new Float32Array(6);
             const geom = new THREE.BufferGeometry();
             geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -501,6 +619,12 @@
         nodes.forEach(node => {
             const label = node.userData._labelEl;
             if (!label) return;
+            
+            // Only update/show labels if we are in the network view
+            if (currentView !== 'network') {
+                label.style.display = 'none';
+                return;
+            }
 
             tempV.setFromMatrixPosition(node.matrixWorld);
             tempV.project(camera);
@@ -525,29 +649,42 @@
     /* ---------- Animation loop ---------- */
     function animate(time) {
         requestAnimationFrame(animate);
+        
+        // Only run physics/render if in network view
+        if (currentView !== 'network') {
+            return;
+        }
 
         const visibleNodes = nodes.filter(n => n.visible);
-        const t = time || 0; // Ensure time is defined for sine waves
+        const t = time || 0;
 
         visibleNodes.forEach(node => {
             const data = node.userData;
 
             // 1. Force Simulation Logic
             if (node !== draggedNode) {
-                // a. Spring Force (pull towards original position)
-                const diffSpring = new THREE.Vector3().subVectors(data.originalPosition, node.position);
+                
+                // --- ORBITING ANCHOR POINT LOGIC (for subtle movement) ---
+                const orbitTarget = data.originalPosition.clone();
+                const orbitAngle = t * data.orbitSpeed + data.animationOffset;
+                
+                // Calculate a small, circular displacement 
+                orbitTarget.x += Math.cos(orbitAngle) * data.orbitRadius;
+                orbitTarget.z += Math.sin(orbitAngle) * data.orbitRadius;
+                orbitTarget.y += Math.sin(orbitAngle * 0.5) * (data.orbitRadius / 2);
+
+                // a. Spring Force (pull towards the SLIGHTLY ORBITING anchor point)
+                const diffSpring = new THREE.Vector3().subVectors(orbitTarget, node.position);
                 data.vel.add(diffSpring.multiplyScalar(K_SPRING_CENTER));
 
-                // b. Repulsion Force (push away from every other visible node)
+                // b. Repulsion Force
                 const repulsionForce = new THREE.Vector3();
                 visibleNodes.forEach(otherNode => {
                     if (node.id === otherNode.id) return;
 
                     const diffRepel = new THREE.Vector3().subVectors(node.position, otherNode.position);
-                    const distanceSq = diffRepel.lengthSq() || 0.1; // avoid division by zero
+                    const distanceSq = diffRepel.lengthSq() || 0.1;
                     
-                    // Apply force inversely proportional to distance squared
-                    // The force is stronger when nodes are closer (K_REPEL / distanceSq)
                     const forceMagnitude = K_REPEL_NODE / distanceSq;
 
                     repulsionForce.add(diffRepel.normalize().multiplyScalar(forceMagnitude));
@@ -557,32 +694,20 @@
 
             // 2. Apply velocity and damping
             node.position.add(data.vel);
-            data.vel.multiplyScalar(VELOCITY_DAMPING); // Smoothly decay velocity
+            data.vel.multiplyScalar(VELOCITY_DAMPING);
 
-            // 3. Subtle Floating Movement (Organic Jiggle)
-            const floatSpeed = 0.0005;
-            // Very small magnitude (0.005) ensures the movement is barely visible
-            const floatMagnitude = 0.005; 
-            const offset = data.animationOffset;
-
-            node.position.x += Math.sin((t * floatSpeed) + offset) * floatMagnitude;
-            node.position.y += Math.cos((t * floatSpeed * 1.2) + offset) * floatMagnitude;
-            node.position.z += Math.sin((t * floatSpeed * 0.8) + offset) * floatMagnitude;
-
-            // 4. Simple Visual Pulse (Scaling)
-            const pulse = Math.sin(t * 0.001 + offset) * 0.5;
+            // 3. Simple Visual Pulse (Scaling)
+            const pulse = Math.sin(t * 0.001 + data.animationOffset) * 0.5;
             node.scale.setScalar(1 + pulse * 0.05);
 
-            // 5. Keep network bounded
+            // 4. Keep network bounded
             if (node.position.length() > GALAXY_RADIUS * 1.4) {
-                 // Gently pull back towards the origin if too far out
                 node.position.multiplyScalar(0.995); 
             }
         });
 
         // update edge positions
         edges.forEach(e => {
-            // Only update if both connected nodes are visible
             if (e.nodeA.visible && e.nodeB.visible) {
                 const arr = e.mesh.geometry.attributes.position.array;
                 arr[0] = e.nodeA.position.x;
@@ -635,20 +760,17 @@
         nodes.forEach(node => {
             const isVisible = filterKey === 'all' || node.userData.category === filterKey;
             node.visible = isVisible;
-            // The label visibility update is handled by updateLabels() which checks node.visible
         });
-
-        // Edge visibility is handled within the animate loop based on node visibility
     }
 
     /* ========== Modal logic (robust, mobile-friendly) ========== */
-    function showProjectModal(data) {
-        isModalOpen = true;
-        document.body.style.overflow = 'hidden'; // prevent page scroll on mobile
-
+    function findProjectIndexById(id) {
+        return ARTWORKS.findIndex(a => a.id === id);
+    }
+    
+    function renderProjectDetails(data) {
         currentProjectUrl = data.url || '';
 
-        // inject content
         modalDetailsDiv.innerHTML = `
             <header>
                 <h3 id="modal-title" class="text-xl font-extrabold">${escapeHtml(data.title)}</h3>
@@ -657,7 +779,7 @@
             <div class="image-card rounded-xl overflow-hidden shadow-lg mb-4">
                 <img src="${escapeAttr(data.image_path)}" alt="${escapeAttr(data.title)}"
                     class="w-full h-56 object-cover md:h-72"
-                    onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Placeholder'">
+                    onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Image+Missing';">
                 <div class="description p-3 text-gray-400 text-sm italic">
                     ${escapeHtml(data.description)}
                 </div>
@@ -672,25 +794,56 @@
         `;
 
         actionMessage.style.display = 'none';
+    }
+
+    function showProjectModal(data) {
+        const id = data.id;
+        currentProjectIndex = findProjectIndexById(id);
+        
+        if (currentProjectIndex === -1) {
+            console.error("Project data not found for ID:", id);
+            return;
+        }
+
+        isModalOpen = true;
+        document.body.style.overflow = 'hidden';
+
+        renderProjectDetails(ARTWORKS[currentProjectIndex]);
+
         projectModal.classList.remove('hidden');
         projectModal.style.display = 'flex';
         fullProjectBtn.focus();
     }
 
+    function navigateProject(direction) {
+        if (ARTWORKS.length === 0) return;
+
+        let newIndex = currentProjectIndex + direction;
+
+        // Wrap-around logic
+        if (newIndex < 0) {
+            newIndex = ARTWORKS.length - 1;
+        } else if (newIndex >= ARTWORKS.length) {
+            newIndex = 0;
+        }
+
+        currentProjectIndex = newIndex;
+        renderProjectDetails(ARTWORKS[currentProjectIndex]);
+    }
+
+
     function closeProjectModal() {
         isModalOpen = false;
         projectModal.style.display = 'none';
         projectModal.classList.add('hidden');
-        document.body.style.overflow = ''; // restore
+        document.body.style.overflow = '';
     }
 
     function handleFullProjectClick() {
         if (!currentProjectUrl) return;
         actionMessage.textContent = `Opening ${currentProjectUrl}`;
         actionMessage.classList.remove('hidden');
-        // open in new tab/window
         window.open(currentProjectUrl, '_blank', 'noopener');
-        // close modal after short delay so the user can see the action message
         setTimeout(() => {
             actionMessage.classList.add('hidden');
             closeProjectModal();
@@ -705,7 +858,6 @@
             .replace(/>/g, '&gt;');
     }
     function escapeAttr(str = '') {
-        // Ensures proper escaping for HTML attributes like src or style values
         return escapeHtml(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
@@ -713,4 +865,4 @@
     window.onload = init;
     </script>
 </body>
-</html> 
+</html>
