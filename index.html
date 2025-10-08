@@ -180,7 +180,11 @@
         BASE_COLOR_TINT: 0xffffff, 
         // 5. MOVEMENT/RANGE: The max radius (distance) stars are generated within. 
         // Increasing this (e.g., to 1000) makes the starfield appear more sparse and distant.
-        GENERATION_RADIUS: 800 
+        GENERATION_RADIUS: 800,
+        // 6. MOVEMENT SPEED: How fast the stars subtle orbit/drift. (Lower is slower)
+        STAR_ORBIT_SPEED: 0.0003, 
+        // 7. MOVEMENT DISTANCE: The maximum distance the stars drift from their original position.
+        STAR_MAX_DRIFT: 10,
     };
 
     /* ========== THREE.JS STATE & FORCE CONSTANTS ========== */
@@ -188,7 +192,7 @@
     let raycaster, mouse;
     let nodeGroup, lineGroup;
     let nodes = [], edges = [];
-    const NODE_RADIUS = 3;
+    const NODE_RADIUS = 5;
     const GALAXY_RADIUS = 150;
     const CLICK_THRESHOLD = 25; // pixels
 
@@ -887,6 +891,7 @@
     </script>
 </body>
 </html>
+
 
 
 
