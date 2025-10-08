@@ -191,8 +191,9 @@
     let scene, camera, renderer, controls, canvasElement;
     let raycaster, mouse;
     let nodeGroup, lineGroup;
-    let nodes = [], edges = [];
     let starsMesh;
+    let nodes = [], edges = [];
+        
     const NODE_RADIUS = 9;
     const GALAXY_RADIUS = 150;
     const CLICK_THRESHOLD = 25; // pixels
@@ -285,7 +286,7 @@
         scene.add(lineGroup);
 
         // Core Content Creation
-        createBackgroundStars(900);
+        createBackgroundStars();
         createGalaxyNetwork();
         createLabels();
         populateFilterMenu();
@@ -892,6 +893,7 @@
     </script>
 </body>
 </html>
+
 
 
 
