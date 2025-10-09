@@ -1,153 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Starfield Test</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: black; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/controls/OrbitControls.js"></script>
+
 <script>
-/* ========== STAR CONFIGURATION ========== */
+/* =================== CONFIG =================== */
 const STAR_CONFIG = {
-    COUNT: 1200,
-    BASE_SIZE: 0.5,
-    SIZE_ATTENUATION: true,
-    BASE_COLOR_TINT: 0xffffff,
-    GENERATION_RADIUS: 800,
-    STAR_ORBIT_SPEED: 0.0005,
-    STAR_MAX_DRIFT: 10
+  COUNT: 1200,
+  BASE_SIZE: 0.7,
+  SIZE_ATTENUATION: true,
+  BASE_COLOR_TINT: 0xffffff,
+  GENERATION_RADIUS: 800,
+  STAR_ORBIT_SPEED: 0.0005,
+  STAR_MAX_DRIFT: 10
 };
 
+let scene, camera, renderer, controls;
 let starsMesh, starPositions, starInitialPositions;
 
-/* ---------- Create circular texture for glowing stars ---------- */
+/* ---------- Create circular glowing star texture ---------- */
 function createStarTexture() {
-    const size = 64;
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext('2d');
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
 
-    const gradient = ctx.createRadialGradient(
-        size / 2, size / 2, 0,
-        size / 2, size / 2, size / 2
-    );
-    gradient.addColorStop(0, 'rgba(255,255,255,1)');
-    gradient.addColorStop(0.4, 'rgba(255,255,255,0.6)');
-    gradient.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
+  const gradient = ctx.createRadialGradient(
+    size / 2, size / 2, 0,
+    size / 2, size / 2, size / 2
+  );
+  gradient.addColorStop(0, "rgba(255,255,255,1)");
+  gradient.addColorStop(0.4, "rgba(255,255,255,0.6)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
 
-    return new THREE.CanvasTexture(canvas);
+  return new THREE.CanvasTexture(canvas);
 }
 
-/* ---------- Create the background starfield ---------- */
+/* ---------- Create stars ---------- */
 function createBackgroundStars() {
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(STAR_CONFIG.COUNT * 3);
+  const geometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(STAR_CONFIG.COUNT * 3);
 
-    for (let i = 0; i < STAR_CONFIG.COUNT; i++) {
-        const radius = STAR_CONFIG.GENERATION_RADIUS * Math.random();
-        const theta = Math.random() * 2 * Math.PI;
-        const phi = Math.acos(2 * Math.random() - 1);
-        const x = radius * Math.sin(phi) * Math.cos(theta);
-        const y = radius * Math.sin(phi) * Math.sin(theta);
-        const z = radius * Math.cos(phi);
-        positions[i * 3] = x;
-        positions[i * 3 + 1] = y;
-        positions[i * 3 + 2] = z;
-    }
+  for (let i = 0; i < STAR_CONFIG.COUNT; i++) {
+    const radius = STAR_CONFIG.GENERATION_RADIUS * Math.random();
+    const theta = Math.random() * 2 * Math.PI;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const x = radius * Math.sin(phi) * Math.cos(theta);
+    const y = radius * Math.sin(phi) * Math.sin(theta);
+    const z = radius * Math.cos(phi);
+    positions.set([x, y, z], i * 3);
+  }
 
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
 
-    const texture = createStarTexture();
-    const material = new THREE.PointsMaterial({
-        size: STAR_CONFIG.BASE_SIZE,
-        color: STAR_CONFIG.BASE_COLOR_TINT,
-        map: texture,
-        transparent: true,
-        opacity: 0.9,
-        blending: THREE.AdditiveBlending,
-        sizeAttenuation: STAR_CONFIG.SIZE_ATTENUATION,
-        depthWrite: false
-    });
+  const material = new THREE.PointsMaterial({
+    size: STAR_CONFIG.BASE_SIZE,
+    color: STAR_CONFIG.BASE_COLOR_TINT,
+    map: createStarTexture(),
+    transparent: true,
+    opacity: 0.9,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: STAR_CONFIG.SIZE_ATTENUATION,
+    depthWrite: false
+  });
 
-    starsMesh = new THREE.Points(geometry, material);
-    scene.add(starsMesh);
+  starsMesh = new THREE.Points(geometry, material);
+  scene.add(starsMesh);
 
-    starPositions = geometry.attributes.position;
-    starInitialPositions = positions.slice();
+  starPositions = geometry.attributes.position;
+  starInitialPositions = positions.slice();
 }
 
-/* ---------- Animate the starfield (subtle orbital drift) ---------- */
+/* ---------- Animate stars ---------- */
 function animateStars(time) {
-    if (!starsMesh || !starPositions) return;
-    const positions = starPositions.array;
-    for (let i = 0; i < STAR_CONFIG.COUNT; i++) {
-        const baseIndex = i * 3;
-        const angle = STAR_CONFIG.STAR_ORBIT_SPEED * time + i * 0.1;
-        const baseX = starInitialPositions[baseIndex];
-        const baseY = starInitialPositions[baseIndex + 1];
-        const baseZ = starInitialPositions[baseIndex + 2];
-
-        positions[baseIndex] = baseX + Math.sin(angle) * STAR_CONFIG.STAR_MAX_DRIFT;
-        positions[baseIndex + 1] = baseY + Math.cos(angle * 0.7) * STAR_CONFIG.STAR_MAX_DRIFT;
-        positions[baseIndex + 2] = baseZ + Math.sin(angle * 0.5) * STAR_CONFIG.STAR_MAX_DRIFT;
-    }
-    starPositions.needsUpdate = true;
+  if (!starPositions) return;
+  const positions = starPositions.array;
+  for (let i = 0; i < STAR_CONFIG.COUNT; i++) {
+    const base = i * 3;
+    const angle = STAR_CONFIG.STAR_ORBIT_SPEED * time + i * 0.1;
+    const bx = starInitialPositions[base];
+    const by = starInitialPositions[base + 1];
+    const bz = starInitialPositions[base + 2];
+    positions[base] = bx + Math.sin(angle) * STAR_CONFIG.STAR_MAX_DRIFT;
+    positions[base + 1] = by + Math.cos(angle * 0.7) * STAR_CONFIG.STAR_MAX_DRIFT;
+    positions[base + 2] = bz + Math.sin(angle * 0.5) * STAR_CONFIG.STAR_MAX_DRIFT;
+  }
+  starPositions.needsUpdate = true;
 }
 
-/* ---------- INIT — add this call to your existing init() ---------- */
+/* ---------- Initialize scene ---------- */
 function init() {
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
-    scene.fog = new THREE.FogExp2(0x000000, 0.0006);
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x000000);
 
-    camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 2000);
-    camera.position.set(0, 0, 200);
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 5000);
+  camera.position.z = 1000;
 
-    renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+
+  createBackgroundStars();
+
+  window.addEventListener("resize", () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.domElement.style.touchAction = 'none';
-    document.body.appendChild(renderer.domElement);
-    canvasElement = renderer.domElement;
-
-    controls = new THREE.OrbitControls(camera, canvasElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.minDistance = 50;
-    controls.maxDistance = 600;
-
-    // Lights
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-    const dir = new THREE.DirectionalLight(0xffffff, 1.6);
-    dir.position.set(10, 10, 10);
-    scene.add(dir);
-
-    raycaster = new THREE.Raycaster();
-    mouse = new THREE.Vector2();
-
-    nodeGroup = new THREE.Group();
-    lineGroup = new THREE.Group();
-    scene.add(nodeGroup);
-    scene.add(lineGroup);
-
-    // 🌌 Add stars before other content
-    createBackgroundStars();
-
-    // Continue your existing setup...
-    createGalaxyNetwork();
-    createLabels();
-    populateFilterMenu();
-
-    window.addEventListener('resize', onWindowResize, false);
-    animate();
+  });
 }
 
-/* ---------- Animate loop ---------- */
+/* ---------- Animate ---------- */
 function animate(time = 0) {
-    requestAnimationFrame(animate);
-
-    // Update orbit controls
-    controls.update();
-
-    // 🌠 Animate stars
-    animateStars(time);
-
-    // Update other objects
-    renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+  controls.update();
+  animateStars(time);
+  renderer.render(scene, camera);
 }
+
+/* ---------- Start ---------- */
+init();
+animate();
 </script>
+</body>
+</html>
