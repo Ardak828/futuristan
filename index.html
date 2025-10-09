@@ -1,80 +1,895 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Starfield Debug</title>
-  <style>
-    body { margin: 0; overflow: hidden; background: black; }
-    canvas { display: block; }
-  </style>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>futuristan</title>
+    <link rel="icon" type="image/png" href="images/Futuristan-logo-small-fav.png" >
+    <!-- Load Tailwind CSS for modern, utility-first styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for Three.js container and fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;600;800&display=swap');
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: #000;
+            font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        canvas { display: block; width: 100%; height: 100%; }
+        
+        /* Define CSS Variables for modal/panel consistency */
+        :root {
+            --panel: #000000; /* <-- CHANGE THIS HEX CODE FOR MODAL BACKGROUND */
+            --muted: #9ca3af;
+            --accent: #4f46e5;
+        }
+
+        /* Modal specific styles remaining from original, now combined with Tailwind */
+        #projectModal .panel {
+            background: var(--panel);
+        }
+        #projectModal .close-btn {
+             color: var(--muted);
+        }
+        #projectModal .close-btn:hover { 
+            color: #fff; background: rgba(255,255,255,0.03); 
+        }
+        #projectModal .panel h3 {
+            color: #fff;
+        }
+        #projectModal .panel p.category {
+            color: #9aa0ff; /* Purple accent */
+        }
+        .image-card {
+            background: #0f1724;
+            border: 1px solid rgba(255,255,255,0.03);
+        }
+        .tag {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.02);
+        }
+        .color-indicator {
+            color: var(--muted);
+        }
+
+    </style>
+
+    <!-- THREE.js r128 + OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Instructions (Tailwind classes applied) -->
+    <div id="instructions" class="fixed top-4 left-1/2 -translate-x-1/2 z-40 bg-white/10 text-gray-300 p-2 rounded-xl font-semibold text-sm backdrop-blur-sm transition-opacity">
+        <div class="font-extrabold text-[#dfe3ff]">3D Network Explorer</div>
+        <div class="text-xs mt-1 text-gray-300">
+            Drag to orbit — Click / Tap a sphere to open details
+        </div>
+    </div> 
 
-<script>
-let scene, camera, renderer, controls, stars;
+    <!-- Top Navigation Container (Filter + About Button) -->
+    <div id="top-nav-container" class="fixed top-4 left-4 z-40 flex gap-3 items-center">
+        <div id="filter-group">
+            <select id="category-filter" aria-label="Filter projects"
+                class="p-2 rounded-xl border border-white/10 bg-black/80 text-white font-bold text-sm min-w-[12rem] focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+            </select>
+        </div>
+        <button id="about-btn" class="p-2 rounded-xl border border-white/10 bg-white/5 text-white font-bold text-sm hover:bg-white/10 transition">
+            About
+        </button>
+    </div>
 
-function init() {
-  scene = new THREE.Scene();
+    <div id="label-container" style="pointer-events:none;"></div>
 
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
-  camera.position.z = 500;
+    <!-- About Content View (New Page) -->
+    <div id="aboutContent" class="absolute inset-0 z-30 flex items-center justify-center p-4 md:p-8 hidden">
+        <div class="max-w-3xl w-full bg-[#0a0a0a] p-8 md:p-12 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-sm max-h-[90vh] overflow-y-auto">
+            <h2 class="text-4xl font-extrabold text-indigo-400 mb-6">About futuristan</h2>
+            <p class="text-gray-300 mb-4 text-lg leading-relaxed">
+                This explorer visualizes a distributed network of digital artworks and data sets. Each sphere represents a unique project, and the connecting lines symbolize conceptual or technical dependencies between them.
+            </p>
+            <p class="text-gray-400 mb-4 leading-relaxed">
+                The system uses a custom physics simulation to keep nodes separated while ensuring they remain anchored to their original, random positions. The orbital movement adds a sense of life and dynamism to the static data structure.
+            </p>
+            <ul class="list-disc list-inside text-gray-400 pl-4 mb-6 space-y-2">
+                <li>Drag the canvas to change perspective.</li>
+                <li>Click a node to view its detailed description and image.</li>
+                <li>Use the category menu in the top left to categorize the displayed nodes.</li>
+            </ul>
+            <button id="backToNetworkBtn" class="mt-4 py-2 px-6 rounded-xl border-none cursor-pointer font-extrabold text-base bg-indigo-600 text-white hover:bg-indigo-700 transition">
+                Back to Network View
+            </button>
+        </div>
+    </div>
 
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.body.appendChild(renderer.domElement);
 
-  controls = new THREE.OrbitControls(camera, renderer.domElement);
+    <!-- Modal (Tailwind classes applied) -->
+    <div id="projectModal" role="dialog" aria-modal="true" aria-labelledby="modal-title"
+        class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto hidden">
+        <div class="backdrop absolute inset-0 bg-gray-900/60" id="modalBackdrop"></div>
+        
+        <!-- Navigation Buttons: positioned fixed for large tap targets -->
+        <button id="prevProjectBtn" class="fixed left-4 md:left-8 top-1/2 -translate-y-1/2 p-4 z-[51] rounded-full bg-white/5 hover:bg-white/10 text-white transition ring-2 ring-white/10" aria-label="Previous project">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+        </button>
 
-  // ✴️ SIMPLE STARS
-  const starGeometry = new THREE.BufferGeometry();
-  const starCount = 1000;
-  const positions = new Float32Array(starCount * 3);
+        <div class="panel relative w-11/12 max-w-xl rounded-xl border border-white/5 shadow-2xl p-6 text-gray-100 m-8 z-50 max-h-[90vh] overflow-y-auto" role="document">
+            
+            <!-- Close Button -->
+            <button class="close-btn absolute top-3 right-3 bg-transparent border-none p-1.5 rounded-full cursor-pointer hover:text-white" id="modalCloseBtn" aria-label="Close modal">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
 
-  for (let i = 0; i < starCount; i++) {
-    const x = (Math.random() - 0.5) * 2000;
-    const y = (Math.random() - 0.5) * 2000;
-    const z = (Math.random() - 0.5) * 2000;
-    positions.set([x, y, z], i * 3);
-  }
+            <div id="modal-project-details" aria-live="polite">
+                <!-- injected content -->
+            </div>
 
-  starGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+            <div class="modal-footer mt-4">
+                <button id="fullProjectBtn" class="w-full py-3 rounded-xl border-none cursor-pointer font-extrabold text-base bg-indigo-600 text-white hover:bg-indigo-700 transition">
+                    View Full Project
+                </button>
+                <p id="actionMessage" class="mt-2 text-gray-400 text-sm hidden">Opening project...</p>
+            </div>
+        </div>
 
-  const starMaterial = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 2,
-    sizeAttenuation: true
-  });
+        <button id="nextProjectBtn" class="fixed right-4 md:right-8 top-1/2 -translate-y-1/2 p-4 z-[51] rounded-full bg-white/5 hover:bg-white/10 text-white transition ring-2 ring-white/10" aria-label="Next project">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
+        </button>
+    </div>
 
-  stars = new THREE.Points(starGeometry, starMaterial);
-  scene.add(stars);
+    <script>
+    /* ========== CORE DATA (unchanged semantic structure) ========== */
+    const ARTWORKS = [
+        { id: 0, title: "Neo-Tengri", category: "Virtual Reality", tags: ["#3D", "#SciFi", "#VR"], color: '#A0A0A0', url: "https://ardakmukanova.com/neotengri", description: "Neo Tengri is a speculative VR project, a game space about mythological nomadic creatures.", image_path: "images/0000_Layer-Comp-1.png" },
+        { id: 1, title: "Glyphs of Another World", category: "Digital Worlds", tags: ["#Particles", "#Monochrome", "#Face"], color: '#B0B0B0', url: "https://ardakmukanova.com/glyphs", description: "Glyphs of Another World aims to build a digital myth inspired by the history of nomadic shamanism and ancient petroglyphs.", image_path: "images/0001_Layer-Comp-2.png" },
+        { id: 2, title: "Aulie-Agash", category: "Abstract Legends", tags: ["#Liquid", "#Vibrant", "#Topology"], color: '#C0C0C0', url: "https://futuristan.cargo.site", description: "We went to the sacred tree, which has been welcoming pilgrims for 700 years, in order to establish a special connection with it using algorithms and technology, to hear the voice of this special sacred place, and to find the frequency at which Aulie Agash resonates.", image_path: "images/0002_Layer-Comp-3.png" },
+        { id: 3, title: "Annihilation", category: "Virtual Reality", tags: ["#LiDAR", "#Monochrome", "#Clean"], color: '#D0C0C0', url: "https://ardakmukanova.com/annihilation", description: "Annihilation is a VR project made to represent a speculative world without a human-centered presence, based on the small microorganisms of our galaxy to illustrate the unknown environment and feeling.", image_path: "images/0003_Layer-Comp-4.png" },
+        { id: 4, title: "Phantom Vault", category: "Ecological Simulations", tags: ["#Music", "#Aura", "#Synth"], color: '#E0D0D0', url: "https://ardakmukanova.com/phantom-vault", description: "Phantom Vault presents a speculative bestiary of mythological creatures transformed through the spiraling effects of time, ecological collapse, and the remnants of human influence.", image_path: "images/0004_Layer-Comp-5.png" },
+        { id: 5, title: "Oyu Resonance", category: "Sonification", tags: ["#Neon", "#Organic", "#Growth"], color: '#F0E0E0', url: "https://www.instagram.com/p/DPX8j8TjP_3/?utm_source=ig_web_copy_link&igsh=MzRlODBiNWFlZA==", description: "This project explores the transformation of traditional Kazakh ornaments into sound through Max/MSP. By translating visual patterns into audible frequencies, the algorithm allows us to hear the hidden resonance of these ancient forms.", image_path: "images/0005_Layer-Comp-6.png" },
+        { id: 6, title: "Tamgaly", category: "Digital Worlds", tags: ["#Sculpture", "#Hollow", "#Void"], color: '#F8F8F8', url: "https://ardakmukanova.com/tamgaly", description: "We go inside the small world of the statue to see molecular transformations, which refer to ancient wall paintings in Kazakhstan.", image_path: "images/0006_Layer-Comp-7.png" },
+        { id: 7, title: "Neurolinguistics", category: "Art & Science", tags: ["#Planets", "#Rings", "#Water"], color: '#FEFEFE', url: "https://ardakmukanova.com/neurolinguistics", description: "Neurolinguistics course consists of seven modules and lectured by ten international specialists in neuroscience: Tatiana Chernigovskaya, Turid Helland, Kenneth Hugdahl, Kira Gor, Kirill Nourski, and others.", image_path: "images/0007_Layer-Comp-8.png" },
+        { id: 8, title: "Jerūiyq: Journey Beyond the Horizon", category: "Data Visualization", tags: ["#Code", "#Network", "#Chaos"], color: '#FFFFFF', url: "https://ardakmukanova.com/jeruiyq", description: "Jerūiyq is a promised land from Kazakh legend, passed down from the fifteenth century through generations of oral tradition. It serves as a metaphor for searching, exploration, improvement, and invisible knowledge.", image_path: "images/0008_Layer-Comp-9.png" },
+        { id: 9, title: "NeoDada", category: "Digital Publications", tags: ["#Retro", "#Vapor", "#Glitch"], color: '#EBEBEB', url: "https://ardakmukanova.com/neo-dada", description: "NeoDada is a contemporary graphic poetry book inspired by the work of dadaists.", image_path: "images/0009_Layer-Comp-10.png" },
+    ];
 
-  // 🟥 add a visible cube in center for debugging
-  const cube = new THREE.Mesh(
-    new THREE.BoxGeometry(50, 50, 50),
-    new THREE.MeshBasicMaterial({ color: 0xff0000 })
-  );
-  scene.add(cube);
+    const EDGES = [
+        { from: 0, to: 1 }, { from: 1, to: 5 }, { from: 2, to: 6 },
+        { from: 3, to: 7 }, { from: 0, to: 4 }, { from: 6, to: 1 },
+        { from: 8, to: 9 }, { from: 9, to: 3 }, { from: 4, to: 8 },
+        { from: 7, to: 2 }
+    ];
 
-  window.addEventListener("resize", onWindowResize);
-}
+         /* ========== STAR CONFIGURATION FOR THREE.JS BACKGROUND ========== */
+    const STAR_CONFIG = {
+        // 1. DENSITY: Total number of background stars. (Increase for more stars)
+        COUNT: 1200, 
+        // 2. SIZE: Base size of the stars in the scene. (Increase for bigger dots)
+        BASE_SIZE: 0.5,
+        // 3. GLOW/SIZE: If true, stars further away appear smaller. Setting this to false can increase "glow" effect, but is less realistic.
+        SIZE_ATTENUATION: true, 
+        // 4. COLOR: All stars are randomly tinted, but this sets the maximum range. 
+        // Use 0xFFFFFF (white) for typical stars, or try 0xFFC0CB (light pink) for a nebula effect.
+        BASE_COLOR_TINT: 0xffffff, 
+        // 5. MOVEMENT/RANGE: The max radius (distance) stars are generated within. 
+        // Increasing this (e.g., to 1000) makes the starfield appear more sparse and distant.
+        GENERATION_RADIUS: 800,
+        // 6. MOVEMENT SPEED: How fast the stars subtle orbit/drift. (Lower is slower)
+        STAR_ORBIT_SPEED: 0.0005, 
+        // 7. MOVEMENT DISTANCE: The maximum distance the stars drift from their original position.
+        STAR_MAX_DRIFT: 10
+    };
 
-function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
+    /* ========== THREE.JS STATE & FORCE CONSTANTS ========== */
+    let scene, camera, renderer, controls, canvasElement;
+    let raycaster, mouse;
+    let nodeGroup, lineGroup;
+    let starsMesh;
+    let nodes = [], edges = [];
+        
+    const NODE_RADIUS = 9;
+    const GALAXY_RADIUS = 150;
+    const CLICK_THRESHOLD = 25; // pixels
 
-function animate() {
-  requestAnimationFrame(animate);
-  stars.rotation.y += 0.0008;
-  renderer.render(scene, camera);
-}
+    // Force Simulation Constants
+    const K_SPRING_CENTER = 0.00015;
+    const K_REPEL_NODE = 25;
+    const VELOCITY_DAMPING = 0.98;
+    const MAX_VELOCITY = 1.5;
 
-init();
-animate();
-</script>
+    let draggedNode = null;
+    let plane = new THREE.Plane();
+    let offset = new THREE.Vector3();
+    let intersection = new THREE.Vector3(); 
+    let clickStartScreen = {x: 0, y: 0};
+    let isModalOpen = false;
+    let currentProjectUrl = '';
+    const tempV = new THREE.Vector3();
+    let currentProjectIndex = -1;
+
+    // View management state
+    let currentView = 'network'; // 'network' or 'about'
+
+    // Modal and UI elements
+    const projectModal = document.getElementById('projectModal');
+    const modalBackdrop = document.getElementById('modalBackdrop');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+    const modalDetailsDiv = document.getElementById('modal-project-details');
+    const fullProjectBtn = document.getElementById('fullProjectBtn');
+    const actionMessage = document.getElementById('actionMessage');
+    let prevProjectBtn, nextProjectBtn;
+    
+    // New page elements
+    let aboutContent, aboutBtn, backToNetworkBtn, instructions, filterGroup;
+
+
+    /* ---------- Helpers for pointer coordinates (mouse & touch) ---------- */
+    function getPointerCoordinates(event, isEnd = false) {
+        // returns { clientX, clientY } and sets mouse.x / mouse.y for raycasting
+        const rect = renderer.domElement.getBoundingClientRect();
+        let clientX = 0, clientY = 0;
+        const pointer = (isEnd ? (event.changedTouches && event.changedTouches[0]) : (event.touches && event.touches[0])) || event;
+        if (pointer) {
+            clientX = pointer.clientX;
+            clientY = pointer.clientY;
+        } else {
+            clientX = event.clientX || 0;
+            clientY = event.clientX || 0;
+        }
+        mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+        return { clientX, clientY };
+    }
+
+    /* ---------- Initialization ---------- */
+    function init() {
+        // Initialize Three.js components
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000000);
+        scene.fog = new THREE.FogExp2(0x000000, 0.0006);
+
+        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 2000);
+        camera.position.set(0, 0, 200);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.domElement.style.touchAction = 'none';
+        document.body.appendChild(renderer.domElement);
+        canvasElement = renderer.domElement; // Store reference to canvas
+
+        controls = new THREE.OrbitControls(camera, canvasElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.minDistance = 50;
+        controls.maxDistance = 600;
+
+        // lights
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const dir = new THREE.DirectionalLight(0xffffff, 1.6);
+        dir.position.set(10, 10, 10);
+        scene.add(dir);
+
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+
+        nodeGroup = new THREE.Group();
+        lineGroup = new THREE.Group();
+        scene.add(nodeGroup);
+        scene.add(lineGroup);
+
+        // Core Content Creation
+        createBackgroundStars();
+        createGalaxyNetwork();
+        createLabels();
+        populateFilterMenu();
+        
+        // UI element references
+        aboutContent = document.getElementById('aboutContent');
+        aboutBtn = document.getElementById('about-btn');
+        backToNetworkBtn = document.getElementById('backToNetworkBtn');
+        instructions = document.getElementById('instructions');
+        filterGroup = document.getElementById('filter-group');
+        prevProjectBtn = document.getElementById('prevProjectBtn');
+        nextProjectBtn = document.getElementById('nextProjectBtn');
+
+
+        // Event listeners
+        window.addEventListener('resize', onWindowResize, false);
+        
+        // Pointer events for 3D interaction
+        if (window.PointerEvent) {
+            canvasElement.addEventListener('pointerdown', onPointerDown, { passive: false });
+            canvasElement.addEventListener('pointermove', onPointerMove, { passive: false });
+            canvasElement.addEventListener('pointerup', onPointerUp, { passive: false });
+            canvasElement.addEventListener('pointercancel', onPointerUp, { passive: false });
+        } else {
+            canvasElement.addEventListener('mousedown', onPointerDown, { passive: false });
+            canvasElement.addEventListener('mousemove', onPointerMove, { passive: false });
+            canvasElement.addEventListener('mouseup', onPointerUp, { passive: false });
+
+            canvasElement.addEventListener('touchstart', onPointerDown, { passive: false });
+            canvasElement.addEventListener('touchmove', onPointerMove, { passive: false });
+            canvasElement.addEventListener('touchend', onPointerUp, { passive: false });
+            canvasElement.addEventListener('touchcancel', onPointerUp, { passive: false });
+        }
+
+        // Modal controls
+        modalBackdrop.onclick = closeProjectModal;
+        modalCloseBtn.onclick = closeProjectModal;
+        fullProjectBtn.onclick = handleFullProjectClick;
+        prevProjectBtn.onclick = () => navigateProject(-1);
+        nextProjectBtn.onclick = () => navigateProject(1);
+
+        // NEW: View controls
+        aboutBtn.onclick = () => showView('about');
+        backToNetworkBtn.onclick = () => showView('network');
+
+
+        // fade out instructions after a few seconds
+        setTimeout(() => {
+            if (instructions) instructions.style.opacity = '0';
+        }, 6000);
+        
+        // Set initial view to network
+        showView('network'); 
+        animate();
+    }
+    
+    /**
+     * Toggles visibility between the 3D network view and the static About view.
+     * @param {string} viewName - 'network' or 'about'
+     */
+    function showView(viewName) {
+        currentView = viewName;
+        
+        const isNetwork = viewName === 'network';
+        
+        // 1. Canvas (3D Scene)
+        canvasElement.style.display = isNetwork ? 'block' : 'none';
+        
+        // 2. Network-specific UI
+        instructions.style.display = isNetwork ? 'block' : 'none';
+        filterGroup.style.display = isNetwork ? 'block' : 'none';
+        aboutBtn.textContent = isNetwork ? 'About' : 'Network'; // Toggle button text for clearer navigation
+        
+        // 3. About Page UI
+        aboutContent.classList.toggle('hidden', isNetwork);
+        
+        // 4. 3D Controls
+        controls.enabled = isNetwork;
+        
+        // If switching from network, close modal just in case
+        if (!isNetwork && isModalOpen) {
+            closeProjectModal();
+        }
+        
+        // If switching to network, ensure about button reverts text
+        if (isNetwork) {
+            aboutBtn.textContent = 'About';
+        } else {
+            aboutBtn.textContent = 'Network';
+        }
+    }
+
+
+    /**
+     * Creates a circular texture using the Canvas API.
+     */
+    function createCircleTexture() {
+        const size = 64;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext('2d');
+        
+        // Draw a white circle in the center
+        context.beginPath();
+        context.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI);
+        context.fillStyle = 'white';
+        context.fill();
+
+        return new THREE.CanvasTexture(canvas);
+    }
+
+    /* ---------- Event handlers ---------- */
+    function onPointerDown(event) {
+        if (isModalOpen || currentView !== 'network') return;
+        event.preventDefault();
+        const p = getPointerCoordinates(event, false);
+        clickStartScreen.x = p.clientX;
+        clickStartScreen.y = p.clientY;
+
+        // cast ray
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(nodeGroup.children, false);
+
+        if (intersects.length > 0) {
+            const hit = intersects[0];
+            draggedNode = hit.object;
+            controls.enabled = false;
+
+            // plane normal - use camera direction
+            const camDir = new THREE.Vector3();
+            camera.getWorldDirection(camDir);
+            plane.setFromNormalAndCoplanarPoint(camDir, hit.point);
+            offset.copy(hit.point).sub(draggedNode.position);
+
+            // highlight while dragging
+            if (draggedNode.material && draggedNode.material.emissive) {
+                // Set emissive to a temporary bright green for feedback
+                draggedNode.material.emissive.set(0x00ff00);
+            }
+        } else {
+            draggedNode = null;
+        }
+    }
+
+    function onPointerMove(event) {
+        if (isModalOpen || currentView !== 'network') return;
+        event.preventDefault();
+        getPointerCoordinates(event, false);
+
+        if (draggedNode) {
+            raycaster.setFromCamera(mouse, camera);
+            if (raycaster.ray.intersectPlane(plane, intersection)) {
+                draggedNode.position.copy(intersection).sub(offset);
+                // Zero out velocity when actively dragging
+                draggedNode.userData.vel.set(0, 0, 0);
+            }
+        } else {
+            // hover effect
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodeGroup.children, false);
+
+            // reset emissive for all nodes
+            nodeGroup.children.forEach(n => {
+                if (n.material && n.userData && n.userData.isNode) {
+                    // restore subtle emissive based on its original color
+                    const originalColor = new THREE.Color(n.userData.color);
+                    n.material.emissive.copy(originalColor).multiplyScalar(0.14);
+                }
+            });
+
+            if (intersects.length > 0) {
+                canvasElement.style.cursor = 'pointer';
+                const top = intersects[0].object;
+                if (top.material && top.material.emissive) {
+                    // Highlight on hover
+                    top.material.emissive.set(0x00ffcc);
+                }
+            } else {
+                canvasElement.style.cursor = 'grab';
+            }
+        }
+    }
+
+    function onPointerUp(event) {
+        if (isModalOpen || currentView !== 'network') return;
+        event.preventDefault();
+        const p = getPointerCoordinates(event, true);
+
+        if (draggedNode) {
+            const distanceMoved = Math.hypot(p.clientX - clickStartScreen.x, p.clientY - clickStartScreen.y);
+
+            // restore emissive for the now-released node
+            if (draggedNode.material && draggedNode.material.emissive) {
+                const originalColor = new THREE.Color(draggedNode.userData.color);
+                draggedNode.material.emissive.copy(originalColor).multiplyScalar(0.14);
+            }
+
+            if (distanceMoved < CLICK_THRESHOLD) {
+                // treat as click/tap
+                showProjectModal(draggedNode.userData);
+            } else {
+                // flick: apply a small initial velocity
+                const flickX = (p.clientX - clickStartScreen.x) * 0.008;
+                const flickY = (p.clientY - clickStartScreen.y) * 0.008;
+                // Convert screen motion to 3D velocity relative to camera direction
+                draggedNode.userData.vel.set(flickX, -flickY, 0).applyQuaternion(camera.quaternion).multiplyScalar(10);
+            }
+
+            draggedNode = null;
+            controls.enabled = true;
+        } else {
+            // If pointer up without previously pressing a node, check if we released on a node
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodeGroup.children, false);
+            if (intersects.length > 0) {
+                const hit = intersects[0];
+                showProjectModal(hit.object.userData);
+            }
+        }
+    }
+
+    /* ---------- Create stars/galaxy / nodes ---------- */
+    function createBackgroundStars(count = 800) {
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+        const color = new THREE.Color();
+
+        for (let i = 0; i < count; i++) {
+            const r = Math.random() * 700 + 50;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(Math.random() * 2 - 1);
+
+            positions[i*3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+            positions[i*3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            positions[i*3 + 2] = r * Math.cos(phi);
+
+            color.setHSL(Math.random() * 0.2 + 0.5, 0.6, Math.random() * 0.5 + 0.3);
+            colors[i*3 + 0] = color.r;
+            colors[i*3 + 1] = color.g;
+            colors[i*3 + 2] = color.b;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        
+        const starTexture = createCircleTexture();
+
+        const material = new THREE.PointsMaterial({
+            size: 2,
+            vertexColors: true,
+            transparent: true,
+            sizeAttenuation: true,
+            blending: THREE.AdditiveBlending,
+            map: starTexture
+        });
+
+        const stars = new THREE.Points(geometry, material);
+        scene.add(stars);
+    }
+
+    function createGalaxyNetwork() {
+        const sphereGeo = new THREE.SphereGeometry(NODE_RADIUS, 32, 32);
+        const textureLoader = new THREE.TextureLoader();
+
+        ARTWORKS.forEach(data => {
+            // random spherical placement inside radius
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(Math.random() * 2 - 1);
+            const r = Math.random() * GALAXY_RADIUS;
+
+            const material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(data.color),
+                metalness: 0.08,
+                roughness: 0.45,
+                emissive: new THREE.Color(data.color).multiplyScalar(0.14)
+            });
+
+            const sphere = new THREE.Mesh(sphereGeo, material);
+            sphere.position.set(
+                r * Math.sin(phi) * Math.cos(theta),
+                r * Math.sin(phi) * Math.sin(theta),
+                r * Math.cos(phi)
+            );
+
+            // Load Texture/Placeholder Image
+            textureLoader.load(
+                data.image_path,
+                (texture) => {
+                    sphere.material.map = texture;
+                    sphere.material.color.set(0xffffff); 
+                    sphere.material.needsUpdate = true;
+                },
+                undefined,
+                (error) => {
+                    console.error(`Error loading texture for node ${data.id}:`, error);
+                    sphere.material.color.set(data.color);
+                    sphere.material.needsUpdate = true;
+                }
+            );
+
+            // store extended userData
+            sphere.userData = {
+                ...data,
+                originalPosition: sphere.position.clone(),
+                animationOffset: Math.random() * Math.PI * 2,
+                vel: new THREE.Vector3(0,0,0),
+                isNode: true,
+                // Orbital parameters
+                orbitRadius: Math.random() * 2 + 1.5,
+                orbitSpeed: Math.random() * 0.0005 + 0.0002,
+            };
+
+            nodeGroup.add(sphere);
+            nodes.push(sphere);
+        });
+
+        // create edges lines
+        EDGES.forEach(edge => {
+            const nodeA = nodes.find(n => n.userData.id === edge.from);
+            const nodeB = nodes.find(n => n.userData.id === edge.to);
+            if (!nodeA || !nodeB) return;
+
+            const positions = new Float32Array(6);
+            const geom = new THREE.BufferGeometry();
+            geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const mat = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.7 });
+            const line = new THREE.Line(geom, mat);
+            lineGroup.add(line);
+
+            // Store edge data for easy updates
+            edges.push({ mesh: line, nodeA, nodeB });
+        });
+    }
+
+    /* ---------- Labels (2D) ---------- */
+    function createLabels() {
+        const labelContainer = document.getElementById('label-container');
+        nodes.forEach(node => {
+            const d = node.userData;
+            const label = document.createElement('div');
+            // Tailwind classes applied here
+            label.className = 'node-label absolute pointer-events-none -translate-x-1/2 -translate-y-full p-1.5 rounded-md bg-black/70 border border-white/5 text-xs whitespace-nowrap z-30 transition-opacity';
+            label.id = `label-${d.id}`;
+            label.textContent = d.title;
+            d._labelEl = label; // store reference
+            labelContainer.appendChild(label);
+        });
+    }
+
+    function updateLabels() {
+        nodes.forEach(node => {
+            const label = node.userData._labelEl;
+            if (!label) return;
+            
+            // Only update/show labels if we are in the network view
+            if (currentView !== 'network') {
+                label.style.display = 'none';
+                return;
+            }
+
+            tempV.setFromMatrixPosition(node.matrixWorld);
+            tempV.project(camera);
+
+            const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-tempV.y * 0.5 + 0.5) * window.innerHeight;
+            // Visible if within frustum (z < 1) and its 3D object is set to visible
+            const visible = node.visible && tempV.z < 1; 
+
+            label.style.left = `${x}px`;
+            label.style.top = `${y}px`;
+            label.style.display = visible ? 'block' : 'none';
+
+            // fade based on distance from camera
+            const distance = camera.position.distanceTo(node.position);
+            // Label opacity fades out between 100 (full opacity) and 300 (zero opacity) distance
+            const opacity = Math.min(1.0, Math.max(0, (300 - distance) / 200));
+            label.style.opacity = visible ? opacity : 0;
+        });
+    }
+
+    /* ---------- Animation loop ---------- */
+    function animate(time) {
+        requestAnimationFrame(animate);
+        
+        // Only run physics/render if in network view
+        if (currentView !== 'network') {
+            return;
+        }
+
+        const visibleNodes = nodes.filter(n => n.visible);
+        const t = time || 0;
+
+        visibleNodes.forEach(node => {
+            const data = node.userData;
+
+            // 1. Force Simulation Logic
+            if (node !== draggedNode) {
+                
+                // --- ORBITING ANCHOR POINT LOGIC (for subtle movement) ---
+                const orbitTarget = data.originalPosition.clone();
+                const orbitAngle = t * data.orbitSpeed + data.animationOffset;
+                
+                // Calculate a small, circular displacement 
+                orbitTarget.x += Math.cos(orbitAngle) * data.orbitRadius;
+                orbitTarget.z += Math.sin(orbitAngle) * data.orbitRadius;
+                orbitTarget.y += Math.sin(orbitAngle * 0.5) * (data.orbitRadius / 2);
+
+                // a. Spring Force (pull towards the SLIGHTLY ORBITING anchor point)
+                const diffSpring = new THREE.Vector3().subVectors(orbitTarget, node.position);
+                data.vel.add(diffSpring.multiplyScalar(K_SPRING_CENTER));
+
+                // b. Repulsion Force
+                const repulsionForce = new THREE.Vector3();
+                visibleNodes.forEach(otherNode => {
+                    if (node.id === otherNode.id) return;
+
+                    const diffRepel = new THREE.Vector3().subVectors(node.position, otherNode.position);
+                    const distanceSq = diffRepel.lengthSq() || 0.1;
+                    
+                    const forceMagnitude = K_REPEL_NODE / distanceSq;
+
+                    repulsionForce.add(diffRepel.normalize().multiplyScalar(forceMagnitude));
+                });
+                data.vel.add(repulsionForce);
+            }
+
+            // 2. Apply velocity and damping
+            if (data.vel.length() > MAX_VELOCITY) {
+            data.vel.normalize().multiplyScalar(MAX_VELOCITY); // <--- STABILITY FIX (NEW)
+            }
+            node.position.add(data.vel);
+            data.vel.multiplyScalar(VELOCITY_DAMPING);
+
+            // 3. Simple Visual Pulse (Scaling)
+            const pulse = Math.sin(t * 0.001 + data.animationOffset) * 0.5;
+            node.scale.setScalar(1 + pulse * 0.05);
+
+            // 4. Keep network bounded
+            if (node.position.length() > GALAXY_RADIUS * 1.4) {
+                node.position.multiplyScalar(0.995); 
+            }
+        });
+
+        // update edge positions
+        edges.forEach(e => {
+            if (e.nodeA.visible && e.nodeB.visible) {
+                const arr = e.mesh.geometry.attributes.position.array;
+                arr[0] = e.nodeA.position.x;
+                arr[1] = e.nodeA.position.y;
+                arr[2] = e.nodeA.position.z;
+                arr[3] = e.nodeB.position.x;
+                arr[4] = e.nodeB.position.y;
+                arr[5] = e.nodeB.position.z;
+                e.mesh.geometry.attributes.position.needsUpdate = true;
+                e.mesh.visible = true;
+            } else {
+                e.mesh.visible = false;
+            }
+        });
+
+        controls.update();
+        updateLabels();
+        renderer.render(scene, camera);
+    }
+
+    /* ---------- Resize ---------- */
+    function onWindowResize() {
+        if (!camera || !renderer) return;
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    /* ---------- Filtering UI ---------- */
+    function populateFilterMenu() {
+        const uniqueCategories = Array.from(new Set(ARTWORKS.map(a => a.category))).sort();
+        const categoryFilter = document.getElementById('category-filter');
+        categoryFilter.innerHTML = '';
+        const allOption = document.createElement('option');
+        allOption.value = 'all';
+        allOption.textContent = 'Show All Projects';
+        categoryFilter.appendChild(allOption);
+
+        uniqueCategories.forEach(c => {
+            const o = document.createElement('option');
+            o.value = c;
+            o.textContent = c;
+            categoryFilter.appendChild(o);
+        });
+
+        categoryFilter.addEventListener('change', (e) => setFilter(e.target.value));
+    }
+
+    function setFilter(filterKey) {
+        nodes.forEach(node => {
+            const isVisible = filterKey === 'all' || node.userData.category === filterKey;
+            node.visible = isVisible;
+        });
+    }
+
+    /* ========== Modal logic (robust, mobile-friendly) ========== */
+    function findProjectIndexById(id) {
+        return ARTWORKS.findIndex(a => a.id === id);
+    }
+    
+    function renderProjectDetails(data) {
+        currentProjectUrl = data.url || '';
+
+        modalDetailsDiv.innerHTML = `
+            <header>
+                <h3 id="modal-title" class="text-xl font-extrabold">${escapeHtml(data.title)}</h3>
+                <p class="category text-xs font-bold uppercase tracking-widest mt-1 mb-3">${escapeHtml(data.category)}</p>
+            </header>
+            <div class="image-card rounded-xl overflow-hidden shadow-lg mb-4">
+                <img src="${escapeAttr(data.image_path)}" alt="${escapeAttr(data.title)}"
+                    class="w-full h-56 object-cover md:h-72"
+                    onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Image+Missing';">
+                <div class="description p-3 text-gray-400 text-sm italic">
+                    ${escapeHtml(data.description)}
+                </div>
+            </div>
+            <div class="tag-container flex flex-wrap gap-2 mt-3">
+                ${data.tags.map(t => `<span class="tag text-xs font-bold px-3 py-1 rounded-full text-gray-300">${escapeHtml(t)}</span>`).join('')}
+            </div>
+            <div class="color-indicator flex gap-2 items-center mt-3 font-mono text-xs">
+                <div class="color-swatch w-4 h-4 rounded-full border border-white/10" style="background:${escapeAttr(data.color)}"></div>
+                <div style="opacity:0.9">${escapeHtml(data.color)}</div>
+            </div>
+        `;
+
+        actionMessage.style.display = 'none';
+    }
+
+    function showProjectModal(data) {
+        const id = data.id;
+        currentProjectIndex = findProjectIndexById(id);
+        
+        if (currentProjectIndex === -1) {
+            console.error("Project data not found for ID:", id);
+            return;
+        }
+
+        isModalOpen = true;
+        document.body.style.overflow = 'hidden';
+
+        renderProjectDetails(ARTWORKS[currentProjectIndex]);
+
+        projectModal.classList.remove('hidden');
+        projectModal.style.display = 'flex';
+        fullProjectBtn.focus();
+    }
+
+    function navigateProject(direction) {
+        if (ARTWORKS.length === 0) return;
+
+        let newIndex = currentProjectIndex + direction;
+
+        // Wrap-around logic
+        if (newIndex < 0) {
+            newIndex = ARTWORKS.length - 1;
+        } else if (newIndex >= ARTWORKS.length) {
+            newIndex = 0;
+        }
+
+        currentProjectIndex = newIndex;
+        renderProjectDetails(ARTWORKS[currentProjectIndex]);
+    }
+
+
+    function closeProjectModal() {
+        isModalOpen = false;
+        projectModal.style.display = 'none';
+        projectModal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    function handleFullProjectClick() {
+        if (!currentProjectUrl) return;
+        actionMessage.textContent = `Opening ${currentProjectUrl}`;
+        actionMessage.classList.remove('hidden');
+        window.open(currentProjectUrl, '_blank', 'noopener');
+        setTimeout(() => {
+            actionMessage.classList.add('hidden');
+            closeProjectModal();
+        }, 900);
+    }
+
+    /* ---------- small helpers to protect injected HTML ---------- */
+    function escapeHtml(str = '') {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+    function escapeAttr(str = '') {
+        return escapeHtml(str).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    /* ---------- Start ---------- */
+    window.onload = init;
+    </script>
 </body>
 </html>
