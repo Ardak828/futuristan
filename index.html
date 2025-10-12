@@ -871,6 +871,10 @@ function getPointerCoordinates(event, isEnd = false) {
     `;
 
     actionMessage.style.display = 'none';
+
+    // Reset scroll position when switching projects (especially on mobile)
+    modalDetailsDiv.scrollTop = 0;
+    modal.scrollTop = 0;
 }
 
     function showProjectModal(data) {
@@ -943,5 +947,6 @@ function getPointerCoordinates(event, isEnd = false) {
     </script>
 </body>
 </html>
+
 
 
