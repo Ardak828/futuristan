@@ -242,22 +242,22 @@
 
 
     /* ---------- Helpers for pointer coordinates (mouse & touch) ---------- */
-    function getPointerCoordinates(event, isEnd = false) {
-        // returns { clientX, clientY } and sets mouse.x / mouse.y for raycasting
-        const rect = renderer.domElement.getBoundingClientRect();
-        let clientX = 0, clientY = 0;
-        const pointer = (isEnd ? (event.changedTouches && event.changedTouches[0]) : (event.touches && event.touches[0])) || event;
-        if (pointer) {
-            clientX = pointer.clientX;
-            clientY = pointer.clientY;
-        } else {
-            clientX = event.clientX || 0;
-            clientY = event.clientX || 0;
-        }
-        mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-        return { clientX, clientY };
+function getPointerCoordinates(event, isEnd = false) {
+    // returns { clientX, clientY } and sets mouse.x / mouse.y for raycasting
+    const rect = renderer.domElement.getBoundingClientRect();
+    let clientX = 0, clientY = 0;
+    const pointer = (isEnd ? (event.changedTouches && event.changedTouches[0]) : (event.touches && event.touches[0])) || event;
+    if (pointer) {
+        clientX = pointer.clientX;
+        clientY = pointer.clientY;
+    } else {
+        clientX = event.clientX || 0;
+        clientY = event.clientY || 0; // <-- FIX: previously set from clientX (bug)
     }
+    mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    return { clientX, clientY };
+}
 
     /* ---------- Initialization ---------- */
     function init() {
@@ -521,119 +521,139 @@
     }
 
     /* ---------- Create stars/galaxy / nodes ---------- */
-    function createBackgroundStars(count = 800) {
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(count * 3);
-        const colors = new Float32Array(count * 3);
-        const color = new THREE.Color();
+    function createBackgroundStars(count = STAR_CONFIG.COUNT || 800) {
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+    const color = new THREE.Color();
 
-        for (let i = 0; i < count; i++) {
-            const r = Math.random() * 700 + 50;
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos(Math.random() * 2 - 1);
+    for (let i = 0; i < count; i++) {
+        const r = Math.random() * (STAR_CONFIG.GENERATION_RADIUS || 700) + 50;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(Math.random() * 2 - 1);
 
-            positions[i*3 + 0] = r * Math.sin(phi) * Math.cos(theta);
-            positions[i*3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-            positions[i*3 + 2] = r * Math.cos(phi);
+        positions[i*3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+        positions[i*3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+        positions[i*3 + 2] = r * Math.cos(phi);
 
-            color.setHSL(Math.random() * 0.2 + 0.5, 0.6, Math.random() * 0.5 + 0.3);
-            colors[i*3 + 0] = color.r;
-            colors[i*3 + 1] = color.g;
-            colors[i*3 + 2] = color.b;
-        }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        
-        const starTexture = createCircleTexture();
-
-        const material = new THREE.PointsMaterial({
-            size: 2,
-            vertexColors: true,
-            transparent: true,
-            sizeAttenuation: true,
-            blending: THREE.AdditiveBlending,
-            map: starTexture
-        });
-
-        const stars = new THREE.Points(geometry, material);
-        scene.add(stars);
+        color.setHSL(Math.random() * 0.2 + 0.5, 0.6, Math.random() * 0.5 + 0.3);
+        colors[i*3 + 0] = color.r;
+        colors[i*3 + 1] = color.g;
+        colors[i*3 + 2] = color.b;
     }
+
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    const starTexture = createCircleTexture();
+
+    const material = new THREE.PointsMaterial({
+        size: STAR_CONFIG.BASE_SIZE || 2,
+        vertexColors: true,
+        transparent: true,
+        sizeAttenuation: STAR_CONFIG.SIZE_ATTENUATION !== undefined ? STAR_CONFIG.SIZE_ATTENUATION : true,
+        blending: THREE.AdditiveBlending,
+        map: starTexture
+    });
+
+    const stars = new THREE.Points(geometry, material);
+    stars.name = 'backgroundStars';
+
+    // Disable raycasting on stars so they never block pointer events.
+    stars.raycast = () => { return []; };
+
+    scene.add(stars);
+
+    // keep reference in case you want to animate or remove later
+    starsMesh = stars;
+}
 
     function createGalaxyNetwork() {
-        const sphereGeo = new THREE.SphereGeometry(NODE_RADIUS, 32, 32);
-        const textureLoader = new THREE.TextureLoader();
+    const sphereGeo = new THREE.SphereGeometry(NODE_RADIUS, 32, 32);
+    const textureLoader = new THREE.TextureLoader();
 
-        ARTWORKS.forEach(data => {
-            // random spherical placement inside radius
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos(Math.random() * 2 - 1);
-            const r = Math.random() * GALAXY_RADIUS;
+    // helper palette (fallback when ARTWORKS entries lack a color)
+    const palette = [
+        '#7c3aed','#06b6d4','#ef4444','#f59e0b','#10b981','#60a5fa','#a78bfa',
+        '#f97316','#ec4899','#34d399'
+    ];
 
-            const material = new THREE.MeshStandardMaterial({
-                color: new THREE.Color(data.color),
-                metalness: 0.08,
-                roughness: 0.45,
-                emissive: new THREE.Color(data.color).multiplyScalar(0.14)
-            });
+    ARTWORKS.forEach((data, index) => {
+        // ensure a color exists and store it back to data so userData.color is reliable
+        const assignedColor = data.color || palette[index % palette.length] || '#7c3aed';
+        data.color = assignedColor;
 
-            const sphere = new THREE.Mesh(sphereGeo, material);
-            sphere.position.set(
-                r * Math.sin(phi) * Math.cos(theta),
-                r * Math.sin(phi) * Math.sin(theta),
-                r * Math.cos(phi)
-            );
+        // random spherical placement inside radius
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(Math.random() * 2 - 1);
+        const r = Math.random() * GALAXY_RADIUS;
 
-            // Load Texture/Placeholder Image
-            textureLoader.load(
-                data.image_path,
-                (texture) => {
-                    sphere.material.map = texture;
-                    sphere.material.color.set(0xffffff); 
-                    sphere.material.needsUpdate = true;
-                },
-                undefined,
-                (error) => {
-                    console.error(`Error loading texture for node ${data.id}:`, error);
-                    sphere.material.color.set(data.color);
-                    sphere.material.needsUpdate = true;
-                }
-            );
-
-            // store extended userData
-            sphere.userData = {
-                ...data,
-                originalPosition: sphere.position.clone(),
-                animationOffset: Math.random() * Math.PI * 2,
-                vel: new THREE.Vector3(0,0,0),
-                isNode: true,
-                // Orbital parameters
-                orbitRadius: Math.random() * 2 + 1.5,
-                orbitSpeed: Math.random() * 0.0005 + 0.0002,
-            };
-
-            nodeGroup.add(sphere);
-            nodes.push(sphere);
+        const material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(data.color),
+            metalness: 0.08,
+            roughness: 0.45,
+            emissive: new THREE.Color(data.color).multiplyScalar(0.14)
         });
 
-        // create edges lines
-        EDGES.forEach(edge => {
-            const nodeA = nodes.find(n => n.userData.id === edge.from);
-            const nodeB = nodes.find(n => n.userData.id === edge.to);
-            if (!nodeA || !nodeB) return;
+        const sphere = new THREE.Mesh(sphereGeo, material);
+        sphere.position.set(
+            r * Math.sin(phi) * Math.cos(theta),
+            r * Math.sin(phi) * Math.sin(theta),
+            r * Math.cos(phi)
+        );
 
-            const positions = new Float32Array(6);
-            const geom = new THREE.BufferGeometry();
-            geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        // Load Texture/Placeholder Image
+        textureLoader.load(
+            data.image_path,
+            (texture) => {
+                sphere.material.map = texture;
+                sphere.material.color.set(0xffffff); 
+                sphere.material.needsUpdate = true;
+            },
+            undefined,
+            (error) => {
+                console.error(`Error loading texture for node ${data.id}:`, error);
+                // make sure color is a valid value
+                try { sphere.material.color.set(data.color); } catch (e) { sphere.material.color.set('#7c3aed'); }
+                sphere.material.needsUpdate = true;
+            }
+        );
 
-            const mat = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.7 });
-            const line = new THREE.Line(geom, mat);
-            lineGroup.add(line);
+        // store extended userData
+        sphere.userData = {
+            ...data,
+            color: data.color,
+            originalPosition: sphere.position.clone(),
+            animationOffset: Math.random() * Math.PI * 2,
+            vel: new THREE.Vector3(0,0,0),
+            isNode: true,
+            // Orbital parameters
+            orbitRadius: Math.random() * 2 + 1.5,
+            orbitSpeed: Math.random() * 0.0005 + 0.0002,
+        };
 
-            // Store edge data for easy updates
-            edges.push({ mesh: line, nodeA, nodeB });
-        });
-    }
+        nodeGroup.add(sphere);
+        nodes.push(sphere);
+    });
+
+    // create edges lines
+    EDGES.forEach(edge => {
+        const nodeA = nodes.find(n => n.userData.id === edge.from);
+        const nodeB = nodes.find(n => n.userData.id === edge.to);
+        if (!nodeA || !nodeB) return;
+
+        const positions = new Float32Array(6);
+        const geom = new THREE.BufferGeometry();
+        geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+        const mat = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.7 });
+        const line = new THREE.Line(geom, mat);
+        lineGroup.add(line);
+
+        // Store edge data for easy updates
+        edges.push({ mesh: line, nodeA, nodeB });
+    });
+}
 
     /* ---------- Labels (2D) ---------- */
     function createLabels() {
@@ -904,3 +924,4 @@
     </script>
 </body>
 </html>
+
