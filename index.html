@@ -542,18 +542,22 @@ function onPointerUp(event) {
         
         const starTexture = createCircleTexture();
 
-        const material = new THREE.PointsMaterial({
-            size: 2,
-            vertexColors: true,
-            transparent: true,
-            sizeAttenuation: true,
-            blending: THREE.AdditiveBlending,
-            map: starTexture
-        });
+       const material = new THREE.PointsMaterial({
+    size: 2,
+    vertexColors: true,
+    transparent: true,
+    sizeAttenuation: true,
+    blending: THREE.AdditiveBlending,
+    map: starTexture,
+    depthWrite: false,   // <--- stops stars from occluding spheres
+    depthTest: false,    // <--- allows clicks to pass through
+});
 
         const stars = new THREE.Points(geometry, material);
-        scene.add(stars);
-    }
+stars.renderOrder = -1;
+stars.layers.set(1);
+scene.add(stars);
+
 
    function createGalaxyNetwork() {
     const sphereGeo = new THREE.SphereGeometry(NODE_RADIUS, 32, 32);
@@ -914,6 +918,7 @@ function onPointerUp(event) {
     </script>
 </body>
 </html>
+
 
 
 
