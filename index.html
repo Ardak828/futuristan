@@ -58,6 +58,10 @@
             background-color: #1a1e26;
             border: 1px solid #30363d;
         }
+        /* Custom line styles for better visibility */
+        .line-highlight {
+            transition: opacity 0.1s;
+        }
     </style>
 </head>
 <body>
@@ -97,9 +101,10 @@
             <h4 class="text-xl font-bold text-gray-200">How to Navigate:</h4>
             <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
                 <li><strong>Explore:</strong> Drag and rotate the scene using your mouse or touch.</li>
-                <li><strong>Zoom:</strong> Use the scroll wheel or pinch gesture to zoom in and out.</li>
-                <li><strong>Interact:</strong> **Double-click (or tap the label)** any floating **node** to open the project details.</li>
-                <li><strong>Drag Nodes:</strong> **Click and hold (or tap and hold on mobile)** a node to move it; let go and watch the physics simulation re-establish connections.</li>
+                <li><strong>Zoom:</strong> Use the scroll wheel to zoom in and out.</li>
+                <li><strong>Interact:</strong> **Double-click** any floating **node** to open the project details.</li>
+                <li><strong>Filter:</strong> Use the **"Filter by Category"** menu to focus on specific types of projects (Web, GameDev, etc.).</li>
+                <li><strong>Drag Nodes:</strong> Click and hold a node to move it; let go and watch the physics simulation re-establish connections.</li>
             </ul>
 
             <p class="text-xs italic pt-2 border-t border-gray-800">This immersive is built using **Three.js** for the 3D rendering (nodes, edges, and the beautiful starfield background) and a custom force-directed simulation to govern the movement and layout of the project nodes.</p>
@@ -142,15 +147,9 @@
 
 
 <script>
-    // ----------------------------------------------------------------------------------
     // --- Global Configuration and Constants ---
-    // ----------------------------------------------------------------------------------
     const GALAXY_RADIUS = 120;
     const CONNECTION_DENSITY = 0.3; 
-    
-    // <<< SPHERE SIZE CONTROLS >>>
-    const MIN_NODE_SIZE = 1.0;  // The smallest sphere radius
-    const MAX_NODE_SIZE = 3.0;  // The largest sphere radius
 
     // Force Simulation Constants (Fruchterman-Reingold inspired)
     const K_SPRING_CENTER = 0.0005; 
@@ -158,12 +157,10 @@
     const VELOCITY_DAMPING = 0.96; 
     const MAX_VELOCITY = 0.5;      
 
-    // ----------------------------------------------------------------------------------
     // --- Starfield Configuration ---
-    // ----------------------------------------------------------------------------------
     const STAR_CONFIG = {
-        COUNT: 1200, // Controls the total number of stars (density)
-        BASE_SIZE: 0.5, // Controls the visual size of each star particle
+        COUNT: 1200,
+        BASE_SIZE: 0.5,
         SIZE_ATTENUATION: true,
         BASE_COLOR_TINT: 0xffffff,
         GENERATION_RADIUS: 800,
@@ -193,7 +190,7 @@
     let currentView = 'network';
     let currentProjectIndex = -1;
     let currentProjectUrl = '';
-    let isModalOpen = false; 
+    let isModalOpen = false; // Tracks if PROJECT modal is open
 
     // UI Element References
     let labelContainer, projectModal, modalDetailsDiv, fullProjectBtn, actionMessage;
@@ -203,7 +200,7 @@
     // ----------------------------------------------------------------------------------
     // --- YOUR PROJECT DATA DEFINITION (START) ---
     // ----------------------------------------------------------------------------------
-
+    
     const CATEGORIES = ['Web', 'DataViz', 'Mobile', 'GameDev', 'Research'];
 
     // Define your project data here!
@@ -261,7 +258,7 @@
         document.body.appendChild(renderer.domElement);
 
         // 2. Setup Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1); 
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1); // Increased ambient light for textures
         scene.add(ambientLight);
         const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
         directionalLight.position.set(50, 50, 50).normalize();
@@ -291,32 +288,21 @@
         generateNetwork();
         populateFilterMenu();
 
-        // 7. Setup Interaction Handlers (UNIFIED FOR MOUSE AND TOUCH)
+        // 7. Setup Interaction Handlers
         raycaster = new THREE.Raycaster();
         window.addEventListener('resize', onWindowResize, false);
-        
-        // Input Down (Start Drag)
-        renderer.domElement.addEventListener('mousedown', onInputDown, false);
-        renderer.domElement.addEventListener('touchstart', onInputDown, false);
+        renderer.domElement.addEventListener('mousemove', onDocumentMouseMove, false);
+        renderer.domElement.addEventListener('mousedown', onDocumentMouseDown, false);
+        renderer.domElement.addEventListener('mouseup', onDocumentMouseUp, false);
+        renderer.domElement.addEventListener('dblclick', onDocumentDoubleClick, false);
 
-        // Input Move (Dragging)
-        renderer.domElement.addEventListener('mousemove', onInputMove, false);
-        renderer.domElement.addEventListener('touchmove', onInputMove, false);
-
-        // Input Up (End Drag)
-        renderer.domElement.addEventListener('mouseup', onInputUp, false);
-        renderer.domElement.addEventListener('touchend', onInputUp, false);
-        
-        // Double Click (Desktop only for opening modal)
-        renderer.domElement.addEventListener('dblclick', onInputDoubleClick, false);
-
-        // Modal Button Handlers 
+        // Modal Button Handlers (Project)
         document.getElementById('close-modal-btn').addEventListener('click', closeProjectModal);
         document.getElementById('prev-project-btn').addEventListener('click', () => navigateProject(-1));
         document.getElementById('next-project-btn').addEventListener('click', () => navigateProject(1));
         fullProjectBtn.addEventListener('click', handleFullProjectClick);
         
-        // About Modal Handlers
+        // Modal Button Handlers (About)
         aboutBtn.addEventListener('click', showAboutModal);
         document.getElementById('close-about-modal-btn').addEventListener('click', closeAboutModal);
 
@@ -399,51 +385,53 @@
     }
 
     /**
-     * Loads a texture and applies it to a node's material.
-     * @param {THREE.Mesh} node - The Three.js mesh object for the node.
-     * @param {string} imagePath - The URL path to the image texture.
+     * Loads the project image and applies it as a texture map to the node.
      */
     function loadNodeTexture(node, imagePath) {
-        if (imagePath) {
-            textureLoader.load(
-                imagePath,
-                // Success callback
-                function (texture) {
-                    // Create a new material using the existing node color/properties
-                    // and apply the map for the image.
-                    const newMaterial = node.material.clone();
-                    newMaterial.map = texture;
-                    newMaterial.needsUpdate = true;
-                    node.material = newMaterial;
-                },
-                // Progress callback (optional)
-                undefined,
-                // Error callback
-                function (err) {
-                    console.error('An error happened while loading the node texture for:', node.userData.title, err);
-                    // Fallback: keep the colored material
-                }
-            );
-        }
+        textureLoader.load(
+            imagePath,
+            // On Load Success
+            (texture) => {
+                const newMaterial = node.material.clone();
+                newMaterial.map = texture;
+                
+                // Use a white base color so the texture colors shine through better
+                newMaterial.color.setHex(0xffffff); 
+                newMaterial.emissiveIntensity = 0.2; // Dim the glow slightly when textured
+                newMaterial.needsUpdate = true;
+                
+                // Update the node material
+                node.material = newMaterial;
+                
+                // Update original emissive data for highlighting
+                node.userData.originalEmissive = newMaterial.emissive.clone();
+                node.userData.originalEmissiveIntensity = newMaterial.emissiveIntensity;
+            },
+            // On Progress (undefined)
+            undefined, 
+            // On Load Error: Log error and the node keeps its initial solid color material
+            (err) => {
+                console.error(`Error loading texture for ${node.userData.title}. Using fallback color.`, err);
+            }
+        );
     }
 
     function generateNetwork() {
-        
+        // Increased segments for a smoother sphere to display textures better
+        const nodeGeometry = new THREE.SphereGeometry(1.5, 32, 32); 
+
         // 1. Generate Nodes (Spheres)
         ARTWORKS.forEach((data, i) => {
-            // Calculate a random radius for the current sphere
-            const nodeRadius = MIN_NODE_SIZE + (Math.random() * (MAX_NODE_SIZE - MIN_NODE_SIZE));
-            
-            const nodeGeometry = new THREE.SphereGeometry(nodeRadius, 32, 32); 
-            
+            // Initial Material: Use Lambert for good looks, using the project color as a fallback/base
             const initialMaterial = new THREE.MeshLambertMaterial({ 
                 color: new THREE.Color(data.color), 
-                emissive: new THREE.Color(0x0a0a0a), 
+                emissive: new THREE.Color(0x0a0a0a), // Small base emissive glow
                 emissiveIntensity: 1.0 
             });
 
             const node = new THREE.Mesh(nodeGeometry, initialMaterial);
 
+            // Using spherical coordinates to robustly generate a random position inside a sphere
             const r = Math.random() * GALAXY_RADIUS;
             const theta = Math.random() * Math.PI; 
             const phi = Math.random() * 2 * Math.PI; 
@@ -451,22 +439,23 @@
             const spherical = new THREE.Spherical(r, theta, phi);
             node.position.copy(new THREE.Vector3().setFromSpherical(spherical));
 
+            // Store data for physics and interaction
             node.userData = {
                 ...data,
-                // Store the calculated radius for reference or scaling later
-                radius: nodeRadius, 
                 originalPosition: node.position.clone(),
                 vel: new THREE.Vector3(),
                 orbitRadius: 5 + Math.random() * 5,
                 orbitSpeed: 0.0005 + Math.random() * 0.0005,
                 animationOffset: Math.random() * 2 * Math.PI,
                 
+                // Store original material state for highlighting reset
                 originalEmissive: initialMaterial.emissive.clone(),
                 originalEmissiveIntensity: initialMaterial.emissiveIntensity,
                 edges: [], 
             };
             node.name = 'node';
 
+            // Create and position the HTML label
             const label = document.createElement('div');
             label.className = 'node-label bg-gray-900/50 text-white border border-gray-700 hover:bg-indigo-500/50';
             label.textContent = data.title;
@@ -478,6 +467,7 @@
             labels.push(label);
             scene.add(node);
 
+            // Load and apply texture asynchronously
             loadNodeTexture(node, data.image_path);
         });
 
@@ -538,9 +528,9 @@
         if (node && node !== draggedNode) {
             hoveredNode = node;
             
-            // Apply highlight glow
-            hoveredNode.material.emissive.setHex(0xffffff); 
-            hoveredNode.material.emissiveIntensity = 3.5; 
+            // Apply highlight glow (Emissive glow works great with textures)
+            hoveredNode.material.emissive.setHex(0xffffff); // Max white glow
+            hoveredNode.material.emissiveIntensity = 3.5; // Very intense glow
             
             // Highlight edges
             hoveredNode.userData.edges.forEach(e => {
@@ -610,6 +600,7 @@
         // 1. Update stars
         updateStars(time);
 
+        // Only run physics/render if in network view
         if (currentView !== 'network') {
             controls.update();
             renderer.render(scene, camera);
@@ -621,7 +612,6 @@
 
         visibleNodes.forEach(node => {
             const data = node.userData;
-            const nodeRadius = data.radius || 1.5; // Use stored radius for pulse calculation
 
             // 2. Force Simulation Logic
             if (node !== draggedNode) {
@@ -638,7 +628,7 @@
                 const diffSpring = new THREE.Vector3().subVectors(orbitTarget, node.position);
                 data.vel.add(diffSpring.multiplyScalar(K_SPRING_CENTER));
 
-                // b. Repulsion Force - Adjusted repulsion based on node size
+                // b. Repulsion Force
                 const repulsionForce = new THREE.Vector3();
                 visibleNodes.forEach(otherNode => {
                     if (node.uuid === otherNode.uuid) return; 
@@ -646,11 +636,7 @@
                     const diffRepel = new THREE.Vector3().subVectors(node.position, otherNode.position);
                     const distanceSq = diffRepel.lengthSq() || 0.1;
                     
-                    // Repulsion force is stronger if the nodes are larger
-                    const combinedRadius = nodeRadius + (otherNode.userData.radius || 1.5);
-                    const K_ADJUSTED = K_REPEL_NODE * combinedRadius;
-
-                    const forceMagnitude = K_ADJUSTED / distanceSq;
+                    const forceMagnitude = K_REPEL_NODE / distanceSq;
 
                     repulsionForce.add(diffRepel.normalize().multiplyScalar(forceMagnitude));
                 });
@@ -664,10 +650,9 @@
             node.position.add(data.vel);
             data.vel.multiplyScalar(VELOCITY_DAMPING);
 
-            // 4. Simple Visual Pulse (Scaling) - Pulse proportional to size
+            // 4. Simple Visual Pulse (Scaling)
             const pulse = Math.sin(t * 0.001 + data.animationOffset) * 0.5;
-            // Scale around the base size (1.0)
-            node.scale.setScalar(1 + (pulse * 0.05)); 
+            node.scale.setScalar(1 + pulse * 0.05);
 
             // 5. Keep network bounded
             if (node.position.length() > GALAXY_RADIUS * 1.4) {
@@ -692,10 +677,11 @@
             }
         });
 
-        // 7. Raycasting for hover/interaction (Desktop/Mouse only)
-        if (!draggedNode && !event.touches) {
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(nodes);
+        // 7. Raycasting for hover/interaction
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(nodes);
+
+        if (!draggedNode) {
             highlightNode(intersects.length > 0 ? intersects[0].object : null);
         }
         
@@ -704,26 +690,11 @@
         renderer.render(scene, camera);
     }
 
-    /**
-     * Helper function to get normalized coordinates from mouse or touch events.
-     */
-    function getNormalizedCoordinates(event) {
-        // Use the first touch point if it's a touch event, otherwise use the mouse event
-        const input = event.touches ? event.touches[0] : event;
-        mouse.x = (input.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(input.clientY / window.innerHeight) * 2 + 1;
-    }
+    /* ---------- Event Handlers for Dragging Nodes ---------- */
 
-
-    /* ---------- Unified Input Handlers for Mouse and Touch ---------- */
-
-    function onInputDown(event) {
-        // Prevent default browser actions for touch to allow dragging
-        event.preventDefault(); 
+    function onDocumentMouseDown(event) {
+        event.preventDefault();
         
-        getNormalizedCoordinates(event);
-        
-        // Disable controls temporarily while we check for a node hit
         controls.enabled = false;
         
         raycaster.setFromCamera(mouse, camera);
@@ -731,22 +702,20 @@
 
         if (intersects.length > 0) {
             draggedNode = intersects[0].object;
-            // Prevent camera orbit when clicking/tapping a node
             isDraggingCanvas = false;
         } else {
-             // If no node is hit, allow canvas dragging/orbiting
             isDraggingCanvas = true;
-            controls.enabled = true; // Re-enable controls if no node is hit
+            controls.enabled = true; 
         }
     }
 
-    function onInputMove(event) {
+    function onDocumentMouseMove(event) {
         event.preventDefault();
 
-        getNormalizedCoordinates(event);
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
         if (draggedNode) {
-            // If dragging a node, update its 3D position
             raycaster.setFromCamera(mouse, camera);
 
             // Use the distance from the camera to the node's original Z position
@@ -755,25 +724,22 @@
             const intersectPoint = new THREE.Vector3();
 
             if (raycaster.ray.intersectPlane(plane, intersectPoint)) {
-                // Move the node to the calculated point
                 draggedNode.position.copy(intersectPoint);
-                draggedNode.userData.vel.set(0, 0, 0); // Kill velocity while dragging
+                draggedNode.userData.vel.set(0, 0, 0); 
             }
         }
     }
 
-    function onInputUp(event) {
+    function onDocumentMouseUp(event) {
         event.preventDefault();
 
-        // Re-enable controls after the drag/click/tap is finished
         controls.enabled = true; 
         
         draggedNode = null;
         isDraggingCanvas = false;
     }
     
-    function onInputDoubleClick(event) {
-        // Double-click to open modal on node (Desktop only)
+    function onDocumentDoubleClick(event) {
         event.preventDefault();
 
         raycaster.setFromCamera(mouse, camera);
