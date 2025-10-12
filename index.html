@@ -1,695 +1,603 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>futuristan</title>
-    <link rel="icon" type="image/png" href="images/Futuristan-logo-small-fav.png" >
-    <!-- Load Tailwind CSS for modern, utility-first styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* Custom styles for Three.js container and fonts */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;600;800&display=swap');
-
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            background: #000;
-            font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-            color: #fff;
-            overflow: hidden;
-        }
-
-        canvas { display: block; width: 100%; height: 100%; }
-        
-        /* Define CSS Variables for modal/panel consistency */
-        :root {
-            --panel: #000000; /* <-- CHANGE THIS HEX CODE FOR MODAL BACKGROUND */
-            --muted: #9ca3af;
-            --accent: #4f46e5;
-        }
-
-        /* Modal specific styles remaining from original, now combined with Tailwind */
-        #projectModal .panel {
-            background: var(--panel);
-        }
-        #projectModal .close-btn {
-             color: var(--muted);
-        }
-        #projectModal .close-btn:hover { 
-            color: #fff; background: rgba(255,255,255,0.03); 
-        }
-        #projectModal .panel h3 {
-            color: #fff;
-        }
-        #projectModal .panel p.category {
-            color: #9aa0ff; /* Purple accent */
-        }
-        .image-card {
-            background: #0f1724;
-            border: 1px solid rgba(255,255,255,0.03);
-        }
-        .tag {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.02);
-        }
-        .color-indicator {
-            color: var(--muted);
-        }
-
-    </style>
-
-    <!-- THREE.js r128 + OrbitControls -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Interactive Portfolio Network</title>
+    <!-- THREE.js and OrbitControls -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* Dark GitHub/Space theme */
+            color: #e6e6e6;
+        }
+        #ui-container {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            z-index: 100;
+        }
+        #label-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Allows clicks to pass through to the canvas */
+            z-index: 50;
+        }
+        .node-label {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            padding: 0.2rem 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.9);
+            border-radius: 0.375rem;
+            pointer-events: auto; /* Re-enables pointer events only for the label */
+            cursor: pointer;
+            transition: opacity 0.3s, background-color 0.2s;
+            white-space: nowrap;
+        }
+        .node-label:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        /* Style for modals */
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+        }
+        /* Style for the tags in the modal */
+        .tag {
+            background-color: #1a1e26;
+            border: 1px solid #30363d;
+        }
+    </style>
 </head>
 <body>
-    <!-- Instructions (Tailwind classes applied) -->
-    <div id="instructions" class="fixed top-4 left-1/2 -translate-x-1/2 z-40 bg-white/10 text-gray-300 p-2 rounded-xl font-semibold text-sm backdrop-blur-sm transition-opacity">
-        <div class="font-extrabold text-[#dfe3ff]">3D Network Explorer</div>
-        <div class="text-xs mt-1 text-gray-300">
-            Drag to orbit — Click / Tap a sphere to open details
-        </div>
-    </div> 
 
-    <!-- Top Navigation Container (Filter + About Button) -->
-    <div id="top-nav-container" class="fixed top-4 left-4 z-40 flex gap-3 items-center">
-        <div id="filter-group">
-            <select id="category-filter" aria-label="Filter projects"
-                class="p-2 rounded-xl border border-white/10 bg-black/80 text-white font-bold text-sm min-w-[12rem] focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
-            </select>
-        </div>
-        <button id="about-btn" class="p-2 rounded-xl border border-white/10 bg-white/5 text-white font-bold text-sm hover:bg-white/10 transition">
-            About
+<!-- UI ELEMENTS -->
+<div id="ui-container" class="space-y-4">
+    <div id="controls-container" class="bg-gray-800/80 p-3 rounded-lg shadow-xl border border-gray-700/50 space-y-3">
+        <!-- ABOUT BUTTON -->
+        <button id="about-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg transition shadow-md shadow-indigo-500/30">
+            About This Network
         </button>
-    </div>
-
-    <div id="label-container" style="pointer-events:none;"></div>
-
-    <!-- About Content View (New Page) -->
-    <div id="aboutContent" class="absolute inset-0 z-30 flex items-center justify-center p-4 md:p-8 hidden">
-        <div class="max-w-3xl w-full bg-[#0a0a0a] p-8 md:p-12 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-sm max-h-[90vh] overflow-y-auto">
-            <h2 class="text-4xl font-extrabold text-indigo-400 mb-6">About futuristan</h2>
-            <p class="text-gray-300 mb-4 text-lg leading-relaxed">
-                This explorer visualizes a distributed network of digital artworks and data sets. Each sphere represents a unique project, and the connecting lines symbolize conceptual or technical dependencies between them.
-            </p>
-            <p class="text-gray-400 mb-4 leading-relaxed">
-                The system uses a custom physics simulation to keep nodes separated while ensuring they remain anchored to their original, random positions. The orbital movement adds a sense of life and dynamism to the static data structure.
-            </p>
-            <ul class="list-disc list-inside text-gray-400 pl-4 mb-6 space-y-2">
-                <li>Drag the canvas to change perspective.</li>
-                <li>Click a node to view its detailed description and image.</li>
-                <li>Use the category menu in the top left to categorize the displayed nodes.</li>
-            </ul>
-            <button id="backToNetworkBtn" class="mt-4 py-2 px-6 rounded-xl border-none cursor-pointer font-extrabold text-base bg-indigo-600 text-white hover:bg-indigo-700 transition">
-                Back to Network View
-            </button>
-        </div>
-    </div>
-
-
-    <!-- Modal (Tailwind classes applied) -->
-    <div id="projectModal" role="dialog" aria-modal="true" aria-labelledby="modal-title"
-        class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto hidden">
-        <div class="backdrop absolute inset-0 bg-gray-900/60" id="modalBackdrop"></div>
         
-        <!-- Navigation Buttons: positioned fixed for large tap targets -->
-        <button id="prevProjectBtn" class="fixed left-4 md:left-8 top-1/2 -translate-y-1/2 p-4 z-[51] rounded-full bg-white/5 hover:bg-white/10 text-white transition ring-2 ring-white/10" aria-label="Previous project">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+        <!-- Existing Filter -->
+        <div id="filter-container">
+            <label for="category-filter" class="block text-sm font-medium mb-2">Filter by Category:</label>
+            <select id="category-filter" class="w-full bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-md transition duration-150 ease-in-out"></select>
+        </div>
+    </div>
+</div>
+
+<!-- 2D LABEL CONTAINER -->
+<div id="label-container"></div>
+
+<!-- ABOUT MODAL (Hidden by default, z-index 1001) -->
+<div id="about-modal" class="modal-overlay hidden fixed inset-0 z-[1001] items-center justify-center p-4">
+    <div id="about-modal-content" class="relative bg-gray-900 border border-indigo-500/50 rounded-xl shadow-2xl p-6 w-full max-w-lg md:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <!-- Close Button -->
+        <button id="close-about-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white transition" aria-label="Close About Modal">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
 
-        <div class="panel relative w-11/12 max-w-xl rounded-xl border border-white/5 shadow-2xl p-6 text-gray-100 m-8 z-50 max-h-[90vh] overflow-y-auto" role="document">
+        <h3 class="text-3xl font-extrabold text-indigo-400 mb-4 border-b border-gray-700 pb-2">About This Portfolio Network</h3>
+        
+        <div class="text-gray-300 space-y-4">
+            <p>Welcome to my interactive **3D Portfolio Network**! This visualization represents my projects and skills as a cosmic force-directed graph, designed to give you a unique, engaging way to explore my work.</p>
             
-            <!-- Close Button -->
-            <button class="close-btn absolute top-3 right-3 bg-transparent border-none p-1.5 rounded-full cursor-pointer hover:text-white" id="modalCloseBtn" aria-label="Close modal">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
+            <h4 class="text-xl font-bold text-gray-200">How to Navigate:</h4>
+            <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+                <li><strong>Explore:</strong> Drag and rotate the scene using your mouse or touch.</li>
+                <li><strong>Zoom:</strong> Use the scroll wheel or pinch gesture to zoom in and out.</li>
+                <li><strong>Interact:</strong> **Double-click (or tap the label)** any floating **node** to open the project details.</li>
+                <li><strong>Drag Nodes:</strong> **Click and hold (or tap and hold on mobile)** a node to move it; let go and watch the physics simulation re-establish connections.</li>
+            </ul>
 
-            <div id="modal-project-details" aria-live="polite">
-                <!-- injected content -->
-            </div>
+            <p class="text-xs italic pt-2 border-t border-gray-800">This immersive is built using **Three.js** for the 3D rendering (nodes, edges, and the beautiful starfield background) and a custom force-directed simulation to govern the movement and layout of the project nodes.</p>
+        </div>
+    </div>
+</div>
 
-            <div class="modal-footer mt-4">
-                <button id="fullProjectBtn" class="w-full py-3 rounded-xl border-none cursor-pointer font-extrabold text-base bg-indigo-600 text-white hover:bg-indigo-700 transition">
-                    View Full Project
-                </button>
-                <p id="actionMessage" class="mt-2 text-gray-400 text-sm hidden">Opening project...</p>
-            </div>
+<!-- PROJECT DETAIL MODAL (Hidden by default, z-index 1000) -->
+<div id="project-modal" class="modal-overlay hidden fixed inset-0 z-[1000] items-center justify-center p-4">
+    <div id="modal-content" class="relative bg-gray-900 border border-indigo-500/50 rounded-xl shadow-2xl p-6 w-full max-w-lg md:max-w-3xl max-h-[90vh] overflow-y-auto">
+        <!-- Close Button -->
+        <button id="close-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-white transition" aria-label="Close Modal">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+
+        <!-- Project Details Injection Point -->
+        <div id="modal-details" class="text-white">
+            <!-- Content rendered by renderProjectDetails -->
         </div>
 
-        <button id="nextProjectBtn" class="fixed right-4 md:right-8 top-1/2 -translate-y-1/2 p-4 z-[51] rounded-full bg-white/5 hover:bg-white/10 text-white transition ring-2 ring-white/10" aria-label="Next project">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path></svg>
-        </button>
+        <!-- Navigation and Action Buttons -->
+        <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-700">
+            <div class="flex space-x-2">
+                <button id="prev-project-btn" class="text-indigo-400 hover:text-indigo-300 transition focus:outline-none">
+                    &larr; Prev
+                </button>
+                <button id="next-project-btn" class="text-indigo-400 hover:text-indigo-300 transition focus:outline-none">
+                    Next &rarr;
+                </button>
+            </div>
+            <button id="full-project-btn" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg transition shadow-lg shadow-indigo-500/30">
+                View Project Site
+            </button>
+        </div>
+
+        <!-- Action/Success Message -->
+        <div id="action-message" class="hidden mt-4 text-center text-green-400 font-medium"></div>
     </div>
+</div>
 
-    <script>
-    /* ========== CORE DATA (unchanged semantic structure) ========== */
-    const ARTWORKS = [
-        { id: 0, title: "Neo-Tengri", category: "Virtual Reality", url: "https://ardakmukanova.com/neotengri", description: "Neo Tengri is a speculative VR project, a game space about mythological nomadic creatures.", image_path: "images/0000_Layer-Comp-1.png" },
-        { id: 1, title: "Glyphs of Another World", category: "Digital Worlds", url: "https://ardakmukanova.com/glyphs", description: "Glyphs of Another World aims to build a digital myth inspired by the history of nomadic shamanism and ancient petroglyphs.", image_path: "images/0001_Layer-Comp-2.png" },
-        { id: 2, title: "Aulie-Agash", category: "Abstract Legends", url: "https://futuristan.cargo.site", description: "We went to the sacred tree, which has been welcoming pilgrims for 700 years, in order to establish a special connection with it using algorithms and technology, to hear the voice of this special sacred place, and to find the frequency at which Aulie Agash resonates.", image_path: "images/0002_Layer-Comp-3.png" },
-        { id: 3, title: "Annihilation", category: "Virtual Reality", url: "https://ardakmukanova.com/annihilation", description: "Annihilation is a VR project made to represent a speculative world without a human-centered presence, based on the small microorganisms of our galaxy to illustrate the unknown environment and feeling.", image_path: "images/0003_Layer-Comp-4.png" },
-        { id: 4, title: "Phantom Vault", category: "Ecological Simulations", url: "https://ardakmukanova.com/phantom-vault", description: "Phantom Vault presents a speculative bestiary of mythological creatures transformed through the spiraling effects of time, ecological collapse, and the remnants of human influence.", image_path: "images/0004_Layer-Comp-5.png" },
-        { id: 5, title: "Oyu Resonance", category: "Sonification", url: "https://www.instagram.com/p/DPX8j8TjP_3/?utm_source=ig_web_copy_link&igsh=MzRlODBiNWFlZA==", description: "This project explores the transformation of traditional Kazakh ornaments into sound through Max/MSP. By translating visual patterns into audible frequencies, the algorithm allows us to hear the hidden resonance of these ancient forms.", image_path: "images/0005_Layer-Comp-6.png" },
-        { id: 6, title: "Tamgaly", category: "Digital Worlds", url: "https://ardakmukanova.com/tamgaly", description: "We go inside the small world of the statue to see molecular transformations, which refer to ancient wall paintings in Kazakhstan.", image_path: "images/0006_Layer-Comp-7.png" },
-        { id: 7, title: "Kamil Mulashev. Earth and Time. Kazakhstan", category: "Qazaq Futurism", url: "https://berlinergazette.de/thousands-of-utopias/?fbclid=IwY2xjawNYDvlleHRuA2FlbQIxMQABHkDYtq_Vh_sb5c71aqzk-eyJrvV1kSp9Uvn_p4XX5J8pS8Tw1ZjHDhnHiRg0_aem_q67ugb6gQZd8HO2VcvZ3Lg", description: "The triptych exists in three versions. The original 1979 diploma work is in the collection of the State Tretyakov Gallery. Another author’s copy is held by the A. Kasteyev State Museum of Arts (Almaty). The third belongs to the artist himself, Kamil Mulashev. The triptych has become one of the most recognizable images in the history of Kazakh art; it has been reproduced many times in catalogues and textbooks on Kazakh and Soviet art. In the Soviet period it was shown at major all-Union and international exhibitions dedicated to the USSR’s achievements in space. Today Mulashev’s works often appear in contemporary art exhibitions dealing with the theme of cosmism. In 1984 the triptych was included among the one hundred best works of Soviet art at the exhibition “Traditions and Searches” in Paris. To understand how the triptych’s subjects emerged, one must look at the context of its creation. In a text by the philosopher Kulshat Medeuova devoted to the work’s history, the artist recalls his diploma project: “During my first year of study I took part in a seaside plein-air in Kerch, Crimea. The conditions were ideal. From morning till night I painted the sea—and was never satisfied with the result. Since childhood I had adored Aivazovsky and often copied him, but when you search for your own style, you feel that this sea belongs to someone else. In my second year I went to a plein-air in the Moscow region. The nature there was beautiful too: a drowsy forest, rivers… I knew and loved Shishkin and Levitan and copied them. But again I felt something was off. The dark-green color of the forest swallowed everything around like a wall—and I couldn’t find my own space in it. So I asked my teachers to let me spend the holidays in Kazakhstan.” At first glance, the scene seems to show a cosmonaut descending into the steppe, his parachute recalling fantastical architecture—circular concrete structures in the spirit of Brutalism. The artist succeeds in conveying a sense of open space, air, and even the “temperature” of color, revealing not an abstract landscape of distant planets but—exactly as the title declares—a specific place: the Kazakh steppe.", image_path: "images/0007_Layer-Comp-8.png" },
-        { id: 8, title: "Jerūiyq: Journey Beyond the Horizon", category: "Qazaq Futurism", url: "https://www.altiba9.com/art-news/jeruiyq-pavilion-kazakhstan-60th-venice-biennale?fbclid=IwY2xjawNYDkZleHRuA2FlbQIxMQABHvyu1feuv0cV2cyI4nef-DNzm0dw20RioDNMmekjrMiuD_xcbDKGBkCHslDL_aem_OEVvg-v1LBNXFPmqCv2XnQ", description: "Jerūiyq is the promised land of Kazakh legends that has reached us surviving many generations thanks to the oral tradition. It embodies the metaphor of quest, aspiration, and latent knowledge. Ancient tales of the steppe philosopher Asan Kaigy recount his endeavours to lead the nomadic people to lands free from disease and hunger—where birds weave nests on sheep’s backs, and time bestows eternal life. The word kaigy translates from Kazakh as “sadness,” and it precisely captures the essence of the in this meaning it is used in the expression “to fall into Asan Kaigy,” which features in numerous folk proverbs. The leitmotif of sorrow is manifested in the weeping melodies of the kobyz, resonating with the numerous attempts to realise utopias in the Kazakh steppes. These include the nuclear testing craters, the desiccated Aral Sea, and other indelible scars left by the nomads’ encounter with the dark side of modernity. Aspiration for liberating the mind defines this exposition, unveiling the chronology of utopian imagery development in the works of Kazakh artists. This process can be traced back to the 1970s when they envisioned Kazakhstan as a territory of cosmic utopias (Earth and Time. Kazakhstan by Kamil Mullashev); it continues through the works of the early contemporary art period in the country (Baikonur-2 by Sergey Maslov) and culminates in a generative multi-channel audio work with no beginning and no end that resounds connection with nature through voice and non-linear relationship with time (Presence by Eldar Tagi and Lena Pozdnyakova). In today’s world, countless fantastical narratives rely on Western-centric stereotypes, depicting militaristic scenarios of inventing new weapons and subsequent colonisation of other planets. Departing from these, we seek alternative stories, attuning ourselves to the voices of fragile cultures that can reveal the untold tales of utopian worlds. With the attainment of Independence, Kazakh art has received a new impetus for decolonisation and reimagining of the future, defying Soviet censorship and metropolitan orders. The exhibition features a collection of works by artists who create their own universes. Here, drones and robots intersect with spirits and sacred rituals in Anvar Musrepov’s  Alastau; nomadic culture finds expression in cosmic stations in Mobile Block by Saken Narynov, and visionary monumental paintings open portals, allowing glimpses beyond the horizon of events in New Child. Rebirth by Yerbolat Tolepbay. In our time of perpetual turbulence, Jerūiyq becomes a guiding star on the path to overcoming the crisis of imagination.", image_path: "images/0008_Layer-Comp-9.png" },
-        { id: 9, title: "Korkut", category: "Digital Worlds", url: "https://www.pygmalionartgallery.com/anvar-musrepov-1", description: "The image of a man playing a kobyz seems to be formed from thousands of particles of light. It was created using 3D scanning and generative graphics, in which the point cloud and the rendering process become part of the metaphor, revealing what is typically left out of modeling and simulation. This image represents the character Korkut from A. Musrepov’s film Alastau (2024). The film’s plot transports viewers to a distant future in which, according to astrophysicists’ forecasts, the Sun will inevitably explode. In this post-apocalyptic world, Korkut appears as a deity who sustains life on the planet by playing the kobyz.This image was part of the exhibition “Jeruiq: Journey Beyond the Horizon” at the National Pavilion of Kazakhstan at the 60th Venice Biennale, and has been featured in numerous international publications, including The Art Newspaper, IL GIORNALE DELL’ARTE, and others.", image_path: "images/0009_Layer-Comp-10.png" },
-        { id: 10, title: "Black to the Future", category: "Afrofuturism", url: "https://www.uvic.ca/victoria-colloquium/assets/docs/Black%20to%20the%20Future.pdf", description: "Black to the Future: Interviews with Samuel R. Delany, Greg Tate, and Tricia Rose Afrofuturism “Speculative fiction that addresses African-American themes and concerns in the context of twentieth-century technoculture functions as an African-American signification that appropriates images of technology and a prosthetic future.” — Mark Dery, critic, who coined the term “Afrofuturism” The term “Afrofuturism” was proposed by Mark Dery in his 1994 essay Black to the Future: Interviews with Samuel R. Delany, Greg Tate, and Tricia Rose. By the time it appeared, the concept already described a field that had vividly emerged across disciplines—from literature and experimental jazz to visual art, comics, and hip-hop. Even so, the Afrofuturist movement, initiated by African-American writers, remained marginalized for a long time. Black authors articulated an inclusive future in which Black characters occupy central roles; the turn to speculative storytelling became a mode of reflection that raised questions about systemic racism—using intergalactic travel and other fantastical plotlines as a backdrop for critiquing colonial structures.", image_path: "images/0009_Layer-Comp-10.png" },
-        { id: 11, title: "In Space Is the Place (1974)", category: "Afrofuturism", url: "https://www.youtube.com/watch?v=owCPrIEliZc&list=RDowCPrIEliZc&start_radio=1&t=5s", description: "“Can a community whose past has been deliberately erased—so much so that its efforts are devoted to searching for discernible traces in history—imagine a possible future?” — Samuel R. Delany One of the most striking figures of Afrofuturism is the jazz musician and filmmaker Sun Ra, who was especially active in the 1970s. His postmodern approach in musical films combined experimental jazz, New Age elements, and visual references to Ancient Egyptian culture. The pseudonym of Herman Poole Blount—Sun Ra—refers to the Egyptian sun god; in his films he travels between planets, playing experimental jazz that serves as a conduit to a source of “cosmic philosophy.” These ideas resonated with the spirit of the time, standing in contrast to the Cold War–era space race. In Space Is the Place (1974), Sun Ra creates a space colony for African Americans, inviting them to a new world free from the memory of postcolonial trauma. In literature (Samuel R. Delany, Ralph Ellison, Octavia Butler, and others), African-American authors often envision the future in a positive light, avoiding the familiar alien-invasion and apocalyptic plots common in “white” science fiction. By the mid-2000s, images, ideas, and meanings that had accumulated over half a century firmly entered American popular culture; around this time, media pieces began to appear with titles like “Beyoncé—the Queen of Afrofuturism,” pointing to the imagery in her videos and concerts.", image_path: "images/0009_Layer-Comp-10.png" },
-        { id: 12, title: "Dubai in me - Rendering the World (2010)", category: "Gulf Futurism", url: "https://vimeo.com/16313568", description: "Unlike the grassroots movement of Afrofuturism, in Gulf Futurism—representing the Persian Gulf region—the primary actor is the power of the ruling royal families. Gulf Futurism is more often treated as a critical term, coined by the American artist of Arab descent Sophia Al-Maria. It is frequently described by outside researchers and artists who keep a critical distance, which allows them to openly critique authoritarian structures and ask what lies behind the facade of grand futuristic projects. A vivid example of critical reflection on Gulf Futurism is the artist and musician Christian von Borries’s video essay Dubai in me - Rendering the World (2010), which references the Lumière brothers’ film Workers Leaving the Factory (1895). Instead of nineteenth-century European workers, we see Indian migrant laborers finishing their shift on the construction of yet another skyscraper in Dubai. The director contemplates the status of workers under authoritarian capitalism, where migrant laborers are often constrained in their freedoms and rights. Architectural hypermodernism—the hallmark of the new oil capitals—is one of Gulf Futurism’s central themes. A striking statement about rethinking the centers where the image of the future is produced has been Dubai’s Museum of the Future. Torus-shaped and clad in steel panels inscribed with calligraphy, the building symbolizes the link between cultural tradition and innovation. Resembling a spaceship ready for intergalactic travel, the museum offers interactive and immersive installations, creating a kind of “political Disneyland” where, in entertaining formats, futuristic scenarios are showcased—touching on sustainable development, medicine, transportation, energy, neural networks, and supercomputers.", image_path: "images/0009_Layer-Comp-10.png" },
-        { id: 13, title: "Arab Futurism", category: "Arab Futurism", url: "https://larissasansour.com/", description: "Researcher Pervana Nazif describes Arab futurism as more of a “mood,” noting that it has not yet coalesced into a movement. Arab futurism resonates more closely with Afrofuturism, using the aesthetics of science fiction to reflect on the region’s crises—particularly the status of Palestine and its place in any project of the future. The projects of Danish-Palestinian artist Larissa Sansour and screenwriter with a philosophy background Søren Lind exemplify the core ideas of Arab futurism. Their works—dystopian films, immersive installations, sculptures, digital collages, and other media—blur the boundary between fiction and documentary practice. Outer space also takes center stage in one of Sansour’s video works: to Richard Strauss’s Also sprach Zarathustra, an astronaut plants a Palestinian flag on the Moon, declaring, “That’s one small step for a Palestinian, one giant leap for humankind.” This image symbolizes hope and stands in dissonance with the current political situation. In another work, In Vitro, Sansour and Lind send the viewer into an apocalyptic future: thirty years after an environmental catastrophe has made Bethlehem uninhabitable, a group of scientists prepares to repopulate the city. For years they have lived in an underground bunker, cultivating local species and a new generation of clones. Before going to the surface, a young heir speaks with the gravely ill founder of the underground “ark.” They discuss how to build the future—modeled on the past or from a “blank slate.” The film addresses themes of diaspora and of how reality is perceived by new generations who have never seen the Earth’s surface.", image_path: "images/0009_Layer-Comp-10.png" },
-        { id: 14, title: "Sinofuturism", category: "Sinofuturism", url: "https://www.lawrencelek.com/", description: "London-based artist Lawrence Lek unites filmmaking, video games, and electronic music in a singular cinematic universe. He is best known for advancing the concept of Sinofuturism with immersive installations that explore spiritual and existential themes throughthe lens of science fiction. Winner of the 2024 Frieze Artist Award, he was named one of Time’s 100 most influential people in AI. Lek is represented by Sadie Coles HQ.", image_path: "images/0009_Layer-Comp-10.png" },
-        { id: 15, title: "Guaraní Futurism", category: "Guaraní Futurism", url: "https://www.youtube.com/watch?v=cT7ZXxAMetY", description: "The Guaraní historically led a nomadic life across forested territories spanning Paraguay, Brazil, and Argentina. The Guaraní rap group OWERÁ, who performed at the UN Headquarters in New York, explores a core cosmological idea—the virtuality of earthly experience—in their video “Xondaro Ka'aguy Reguá.” The piece blends futuristic and Indigenous imagery: inhabitants of an ideal forest world; a protagonist who, after putting on VR goggles, is thrust into a noisy metropolis and then returns to a vision of the future in which the Guaraní continue to live in the forest. Another prominent act in the Indigenous rap wave is Ha’e Kuera Ñande Kuera, performing in Spanish and Guaraní; each track becomes a manifesto of historical rights to forest lands—lands increasingly threatened by extractivism, which places Guaraní culture at risk.", image_path: "images/0009_Layer-Comp-10.png" },
-        { id: 16, title: "Science vs Myth: Indigenous Art in the Age of Web 3.0", category: "Qazaq Futurism", url: "https://moscowartmagazine.com/issue/117/article/2525?fbclid=IwY2xjawNYB6JleHRuA2FlbQIxMQABHtMHzf9yuPhiLxZ0eBdUdfcdVOIElUwx5TGJtQG_mfFuzTV3J7kCETEuFKBI_aem_DZhjk30yjy9kH6E-tc_REQ", description: "With the development of the discourse on the “decolonial turn,” there has been a noticeable increase of interest in Indigenous cultures and mythology, as well as in other non-European ways of seeing and sensing. This is vividly illustrated by the latest edition of the 60th Venice Biennale, “Foreigners Everywhere.”In this text, There are examples that dissolve the opposition between science and myth, giving rise to a new aesthetic through the synthesis of the technological and the mythological.", image_path: "images/0009_Layer-Comp-10.png" },
-        { id: 17, title: "Artificial God. On the Digitalization of the Sacred.", category: "Qazaq Futurism", url: "https://moscowartmagazine.com/issue/116/article/2506", description: "In the work “Presence” by Elena Pozdnyakova and Eldar Tagi, sound — as a traditional means of achieving an ecstatic state — was further intensified by its reference to throat singing, which has traditionally been used in shamanic practices characteristic of Turkic peoples for ritual purposes: to communicate with various natural phenomena such as the spirits of wind, fire, and animals. At the exhibition “Zheruyik: A Glance Beyond the Horizon” (Kazakhstan Pavilion at the 60th Venice Biennale), an algorithm generated a resynthesis of the performers’ recordings in real time. A bodiless robot-shaman, having completely taken over the sonic space, imitated the tonalities of the “living” artists in every possible way.", image_path: "images/0009_Layer-Comp-10.png" },
-        { id: 18, title: "Tabita Rezaire", category: "New-media shamanism", url: "https://tabitarezaire.com", description: "A multimedia artist from Cayenne (French Guiana) develops a critique of the internet’s neocolonialism. She has brought a decolonial agenda into the largely “white” genre of post-internet art, which had mostly been saturated with geek-culture references and an escapism from critical questions. Acting as a digital healer—a new-media shaman—Rezaire proclaims a global mission to cleanse cyberspace of colonialism through various magical rituals and references to Vodou and New Age practices. In her work, drawing parallels between data streams and energy flows, she reflects on the search for an “inner data center” that would allow one to bypass Western hierarchies and “download information directly from the source.” In the video installation Deep Down Tidal (2017), the artist meditates on the internet’s transatlantic fiber-optic cables connecting continents, juxtaposing them with the sea routes along which the colonization of the African continent unfolded. In Rezaire’s aesthetics, ocean waters also acquire a spiritual dimension—water as a medium for transmitting information and energy, and as a vehicle for healing.", image_path: "images/0009_Layer-Comp-10.png" },
-    ];
 
-    const EDGES = [
-        { from: 0, to: 1 }, { from: 1, to: 5 }, { from: 2, to: 6 },
-        { from: 3, to: 7 }, { from: 0, to: 4 }, { from: 6, to: 1 },
-        { from: 8, to: 9 }, { from: 9, to: 3 }, { from: 4, to: 8 },
-        { from: 7, to: 2 }, { from: 10, to: 11 }, { from: 12, to: 18 },
-        { from: 13, to: 14 }, { from: 15, to: 18 }, { from: 16, to: 17 },
-        { from: 7, to: 8 }, { from: 7, to: 17 },
-    ];
+<script>
+    // ----------------------------------------------------------------------------------
+    // --- Global Configuration and Constants ---
+    // ----------------------------------------------------------------------------------
+    const GALAXY_RADIUS = 120;
+    const CONNECTION_DENSITY = 0.3; 
+    
+    // <<< SPHERE SIZE CONTROLS >>>
+    const MIN_NODE_SIZE = 1.0;  // The smallest sphere radius
+    const MAX_NODE_SIZE = 3.0;  // The largest sphere radius
 
-         /* ========== STAR CONFIGURATION FOR THREE.JS BACKGROUND ========== */
+    // Force Simulation Constants (Fruchterman-Reingold inspired)
+    const K_SPRING_CENTER = 0.0005; 
+    const K_REPEL_NODE = 0.2;       
+    const VELOCITY_DAMPING = 0.96; 
+    const MAX_VELOCITY = 0.5;      
+
+    // ----------------------------------------------------------------------------------
+    // --- Starfield Configuration ---
+    // ----------------------------------------------------------------------------------
     const STAR_CONFIG = {
-        // 1. DENSITY: Total number of background stars. (Increase for more stars)
-        COUNT: 1200, 
-        // 2. SIZE: Base size of the stars in the scene. (Increase for bigger dots)
-        BASE_SIZE: 0.5,
-        // 3. GLOW/SIZE: If true, stars further away appear smaller. Setting this to false can increase "glow" effect, but is less realistic.
-        SIZE_ATTENUATION: true, 
-        // 4. COLOR: All stars are randomly tinted, but this sets the maximum range. 
-        // Use 0xFFFFFF (white) for typical stars, or try 0xFFC0CB (light pink) for a nebula effect.
-        BASE_COLOR_TINT: 0xffffff, 
-        // 5. MOVEMENT/RANGE: The max radius (distance) stars are generated within. 
-        // Increasing this (e.g., to 1000) makes the starfield appear more sparse and distant.
+        COUNT: 1200, // Controls the total number of stars (density)
+        BASE_SIZE: 0.5, // Controls the visual size of each star particle
+        SIZE_ATTENUATION: true,
+        BASE_COLOR_TINT: 0xffffff,
         GENERATION_RADIUS: 800,
-        // 6. MOVEMENT SPEED: How fast the stars subtle orbit/drift. (Lower is slower)
-        STAR_ORBIT_SPEED: 0.0005, 
-        // 7. MOVEMENT DISTANCE: The maximum distance the stars drift from their original position.
+        STAR_ORBIT_SPEED: 0.0005,
         STAR_MAX_DRIFT: 10
     };
 
-    /* ========== THREE.JS STATE & FORCE CONSTANTS ========== */
-    let scene, camera, renderer, controls, canvasElement;
-    let raycaster, mouse;
-    let nodeGroup, lineGroup;
-    let starsMesh;
-    let nodes = [], edges = [];
-        
-    const NODE_RADIUS = 9;
-    const GALAXY_RADIUS = 150;
-    const CLICK_THRESHOLD = 25; // pixels
+    // --- Three.js & Interaction Globals ---
+    let scene, camera, renderer, controls;
+    let raycaster, mouse = new THREE.Vector2();
+    let tempV = new THREE.Vector3(); // Reusable vector for calculations
+    let starField; 
+    let starPositions = []; 
 
-    // Force Simulation Constants
-    const K_SPRING_CENTER = 0.00015;
-    const K_REPEL_NODE = 25;
-    const VELOCITY_DAMPING = 0.98;
-    const MAX_VELOCITY = 1.5;
+    // Global loader instance for textures
+    const textureLoader = new THREE.TextureLoader();
 
+    // Data containers
+    let nodes = []; 
+    let edges = []; 
+    let labels = []; 
+
+    // Interaction state
+    let hoveredNode = null;
     let draggedNode = null;
-    let plane = new THREE.Plane();
-    let offset = new THREE.Vector3();
-    let intersection = new THREE.Vector3(); 
-    let clickStartScreen = {x: 0, y: 0};
-    let isModalOpen = false;
-    let currentProjectUrl = '';
-    const tempV = new THREE.Vector3();
+    let isDraggingCanvas = false;
+    let currentView = 'network';
     let currentProjectIndex = -1;
+    let currentProjectUrl = '';
+    let isModalOpen = false; 
 
-    // View management state
-    let currentView = 'network'; // 'network' or 'about'
-
-    // Modal and UI elements
-    const projectModal = document.getElementById('projectModal');
-    const modalBackdrop = document.getElementById('modalBackdrop');
-    const modalCloseBtn = document.getElementById('modalCloseBtn');
-    const modalDetailsDiv = document.getElementById('modal-project-details');
-    const fullProjectBtn = document.getElementById('fullProjectBtn');
-    const actionMessage = document.getElementById('actionMessage');
-    let prevProjectBtn, nextProjectBtn;
-    
-    // New page elements
-    let aboutContent, aboutBtn, backToNetworkBtn, instructions, filterGroup;
+    // UI Element References
+    let labelContainer, projectModal, modalDetailsDiv, fullProjectBtn, actionMessage;
+    let aboutModal, aboutBtn; 
 
 
-    /* ---------- Helpers for pointer coordinates (mouse & touch) ---------- */
-    function getPointerCoordinates(event, isEnd = false) {
-        // returns { clientX, clientY } and sets mouse.x / mouse.y for raycasting
-        const rect = renderer.domElement.getBoundingClientRect();
-        let clientX = 0, clientY = 0;
-        const pointer = (isEnd ? (event.changedTouches && event.changedTouches[0]) : (event.touches && event.touches[0])) || event;
-        if (pointer) {
-            clientX = pointer.clientX;
-            clientY = pointer.clientY;
-        } else {
-            clientX = event.clientX || 0;
-            clientY = event.clientX || 0;
+    // ----------------------------------------------------------------------------------
+    // --- YOUR PROJECT DATA DEFINITION (START) ---
+    // ----------------------------------------------------------------------------------
+
+    const CATEGORIES = ['Web', 'DataViz', 'Mobile', 'GameDev', 'Research'];
+
+    // Define your project data here!
+    const ARTWORKS = [
+        {
+            id: "placeholder-1",
+            title: "Your First Project Title (e.g., E-commerce Site)",
+            category: "Web", 
+            description: "Describe your project here: what it does, the main technologies used, and its purpose. Keep it brief for the modal view.",
+            tags: ["React", "Firebase", "Tailwind"],
+            url: "https://your-github-pages-link.com/project-1",
+            image_path: "https://placehold.co/600x400/FF6347/FFFFFF?text=Project+1+Screenshot",
+            color: "#FF6347", // Tomato (Red)
+        },
+        {
+            id: "placeholder-2",
+            title: "Data Visualization Tool (e.g., Climate Data Explorer)",
+            category: "DataViz", 
+            description: "This project showcases data analysis and visualization skills. Mention the data source and the core insights.",
+            tags: ["Python", "D3.js", "Pandas", "Machine Learning"],
+            url: "https://github.com/your-username/data-repo",
+            image_path: "https://placehold.co/600x400/4682B4/FFFFFF?text=Project+2+Screenshot",
+            color: "#4682B4", // Steel Blue (Blue)
+        },
+        {
+            id: "placeholder-3",
+            title: "Mobile Game Prototype (e.g., 2D Platformer)",
+            category: "GameDev", 
+            description: "A small game project demonstrating game logic and asset management. Built with a game engine or vanilla JS.",
+            tags: ["Unity", "C#", "Mobile", "Blender"],
+            url: "https://your-itch-io-link.com/game-name",
+            image_path: "https://placehold.co/600x400/3CB371/FFFFFF?text=Project+3+Screenshot",
+            color: "#3CB371", // Medium Sea Green (Green)
         }
-        mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-        return { clientX, clientY };
-    }
+        // >>> COPY AND PASTE A NEW PROJECT OBJECT HERE, separated by a comma (,)
+    ];
 
-    /* ---------- Initialization ---------- */
+    // ----------------------------------------------------------------------------------
+    // --- YOUR PROJECT DATA DEFINITION (END) ---
+    // ----------------------------------------------------------------------------------
+
+
+    // --- Core Functions ---
+
     function init() {
-        // Initialize Three.js components
+        // 1. Setup Three.js
         scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x000000);
-        scene.fog = new THREE.FogExp2(0x000000, 0.0006);
+        scene.background = new THREE.Color(0x0d1117);
 
-        camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 2000);
-        camera.position.set(0, 0, 200);
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = GALAXY_RADIUS * 1.5;
 
         renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.domElement.style.touchAction = 'none';
         document.body.appendChild(renderer.domElement);
-        canvasElement = renderer.domElement; // Store reference to canvas
 
-        controls = new THREE.OrbitControls(camera, canvasElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.08;
-        controls.minDistance = 50;
-        controls.maxDistance = 600;
-
-        // lights
-        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-        const dir = new THREE.DirectionalLight(0xffffff, 1.6);
-        dir.position.set(10, 10, 10);
-        scene.add(dir);
-
-        raycaster = new THREE.Raycaster();
-        mouse = new THREE.Vector2();
-
-        nodeGroup = new THREE.Group();
-        lineGroup = new THREE.Group();
-        scene.add(nodeGroup);
-        scene.add(lineGroup);
-
-        // Core Content Creation
-        createBackgroundStars();
-        createGalaxyNetwork();
-        createLabels();
-        populateFilterMenu();
+        // 2. Setup Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1); 
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
+        directionalLight.position.set(50, 50, 50).normalize();
+        scene.add(directionalLight);
         
-        // UI element references
-        aboutContent = document.getElementById('aboutContent');
+        // 3. Setup Starfield
+        createStarfield();
+
+        // 4. Setup Orbit Controls (essential for user navigation)
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 50;
+        controls.maxDistance = STAR_CONFIG.GENERATION_RADIUS * 0.9; 
+
+        // 5. Get UI element references
+        labelContainer = document.getElementById('label-container');
+        projectModal = document.getElementById('project-modal');
+        modalDetailsDiv = document.getElementById('modal-details');
+        fullProjectBtn = document.getElementById('full-project-btn');
+        actionMessage = document.getElementById('action-message');
+        aboutModal = document.getElementById('about-modal');
         aboutBtn = document.getElementById('about-btn');
-        backToNetworkBtn = document.getElementById('backToNetworkBtn');
-        instructions = document.getElementById('instructions');
-        filterGroup = document.getElementById('filter-group');
-        prevProjectBtn = document.getElementById('prevProjectBtn');
-        nextProjectBtn = document.getElementById('nextProjectBtn');
 
 
-        // Event listeners
+        // 6. Generate Network
+        generateNetwork();
+        populateFilterMenu();
+
+        // 7. Setup Interaction Handlers (UNIFIED FOR MOUSE AND TOUCH)
+        raycaster = new THREE.Raycaster();
         window.addEventListener('resize', onWindowResize, false);
         
-        // Pointer events for 3D interaction
-        if (window.PointerEvent) {
-            canvasElement.addEventListener('pointerdown', onPointerDown, { passive: false });
-            canvasElement.addEventListener('pointermove', onPointerMove, { passive: false });
-            canvasElement.addEventListener('pointerup', onPointerUp, { passive: false });
-            canvasElement.addEventListener('pointercancel', onPointerUp, { passive: false });
-        } else {
-            canvasElement.addEventListener('mousedown', onPointerDown, { passive: false });
-            canvasElement.addEventListener('mousemove', onPointerMove, { passive: false });
-            canvasElement.addEventListener('mouseup', onPointerUp, { passive: false });
+        // Input Down (Start Drag)
+        renderer.domElement.addEventListener('mousedown', onInputDown, false);
+        renderer.domElement.addEventListener('touchstart', onInputDown, false);
 
-            canvasElement.addEventListener('touchstart', onPointerDown, { passive: false });
-            canvasElement.addEventListener('touchmove', onPointerMove, { passive: false });
-            canvasElement.addEventListener('touchend', onPointerUp, { passive: false });
-            canvasElement.addEventListener('touchcancel', onPointerUp, { passive: false });
-        }
+        // Input Move (Dragging)
+        renderer.domElement.addEventListener('mousemove', onInputMove, false);
+        renderer.domElement.addEventListener('touchmove', onInputMove, false);
 
-        // Modal controls
-        modalBackdrop.onclick = closeProjectModal;
-        modalCloseBtn.onclick = closeProjectModal;
-        fullProjectBtn.onclick = handleFullProjectClick;
-        prevProjectBtn.onclick = () => navigateProject(-1);
-        nextProjectBtn.onclick = () => navigateProject(1);
+        // Input Up (End Drag)
+        renderer.domElement.addEventListener('mouseup', onInputUp, false);
+        renderer.domElement.addEventListener('touchend', onInputUp, false);
+        
+        // Double Click (Desktop only for opening modal)
+        renderer.domElement.addEventListener('dblclick', onInputDoubleClick, false);
 
-        // NEW: View controls
-        aboutBtn.onclick = () => showView('about');
-        backToNetworkBtn.onclick = () => showView('network');
+        // Modal Button Handlers 
+        document.getElementById('close-modal-btn').addEventListener('click', closeProjectModal);
+        document.getElementById('prev-project-btn').addEventListener('click', () => navigateProject(-1));
+        document.getElementById('next-project-btn').addEventListener('click', () => navigateProject(1));
+        fullProjectBtn.addEventListener('click', handleFullProjectClick);
+        
+        // About Modal Handlers
+        aboutBtn.addEventListener('click', showAboutModal);
+        document.getElementById('close-about-modal-btn').addEventListener('click', closeAboutModal);
 
 
-        // fade out instructions after a few seconds
-        setTimeout(() => {
-            if (instructions) instructions.style.opacity = '0';
-        }, 6000);
-        
-        // Set initial view to network
-        showView('network'); 
-        animate();
-    }
-    
-    /**
-     * Toggles visibility between the 3D network view and the static About view.
-     * @param {string} viewName - 'network' or 'about'
-     */
-    function showView(viewName) {
-        currentView = viewName;
-        
-        const isNetwork = viewName === 'network';
-        
-        // 1. Canvas (3D Scene)
-        canvasElement.style.display = isNetwork ? 'block' : 'none';
-        
-        // 2. Network-specific UI
-        instructions.style.display = isNetwork ? 'block' : 'none';
-        filterGroup.style.display = isNetwork ? 'block' : 'none';
-        aboutBtn.textContent = isNetwork ? 'About' : 'Network'; // Toggle button text for clearer navigation
-        
-        // 3. About Page UI
-        aboutContent.classList.toggle('hidden', isNetwork);
-        
-        // 4. 3D Controls
-        controls.enabled = isNetwork;
-        
-        // If switching from network, close modal just in case
-        if (!isNetwork && isModalOpen) {
-            closeProjectModal();
-        }
-        
-        // If switching to network, ensure about button reverts text
-        if (isNetwork) {
-            aboutBtn.textContent = 'About';
-        } else {
-            aboutBtn.textContent = 'Network';
-        }
+        // 8. Start Animation
+        animate(0);
     }
 
-
     /**
-     * Creates a circular texture using the Canvas API.
+     * Creates a circular, soft-edged texture for the stars (background aesthetic).
      */
-    function createCircleTexture() {
+    function createStarTexture() {
         const size = 64;
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
         const context = canvas.getContext('2d');
         
-        // Draw a white circle in the center
-        context.beginPath();
-        context.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI);
-        context.fillStyle = 'white';
-        context.fill();
+        const gradient = context.createRadialGradient(
+            size / 2, size / 2, 0,
+            size / 2, size / 2, size / 2
+        );
+        gradient.addColorStop(0, 'rgba(255,255,255,1)');
+        gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
+        gradient.addColorStop(1, 'rgba(0,0,0,0)'); 
+
+        context.fillStyle = gradient;
+        context.fillRect(0, 0, size, size);
 
         return new THREE.CanvasTexture(canvas);
     }
 
-  /* ---------- Event handlers (fixed) ---------- */
-function updateMouseCoords(event) {
-    const rect = renderer.domElement.getBoundingClientRect();
-    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-}
+    /**
+     * Creates the background starfield using a Points geometry.
+     */
+    function createStarfield() {
+        const vertices = [];
+        const colors = [];
+        const color = new THREE.Color(STAR_CONFIG.BASE_COLOR_TINT);
 
-function onPointerDown(event) {
-    if (isModalOpen || currentView !== 'network') return;
-    event.preventDefault();
-    updateMouseCoords(event);
-    const p = getPointerCoordinates(event, false);
-    clickStartScreen.x = p.clientX;
-    clickStartScreen.y = p.clientY;
-
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(nodeGroup.children, true);
-
-    if (intersects.length > 0) {
-        const hit = intersects[0];
-        draggedNode = hit.object;
-        controls.enabled = false;
-
-        const camDir = new THREE.Vector3();
-        camera.getWorldDirection(camDir);
-        plane.setFromNormalAndCoplanarPoint(camDir, hit.point);
-        offset.copy(hit.point).sub(draggedNode.position);
-
-        if (draggedNode.material && draggedNode.material.emissive) {
-            draggedNode.material.emissive.set(0x00ff00);
-        }
-    } else {
-        draggedNode = null;
-    }
-}
-
-function onPointerMove(event) {
-    if (isModalOpen || currentView !== 'network') return;
-    event.preventDefault();
-    updateMouseCoords(event);
-
-    if (draggedNode) {
-        raycaster.setFromCamera(mouse, camera);
-        if (raycaster.ray.intersectPlane(plane, intersection)) {
-            draggedNode.position.copy(intersection).sub(offset);
-            draggedNode.userData.vel.set(0, 0, 0);
-        }
-    } else {
-        raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(nodeGroup.children, true);
-
-        nodeGroup.children.forEach(n => {
-            if (n.material && n.userData && n.userData.isNode) {
-                const originalColor = new THREE.Color(n.userData.color);
-                n.material.emissive.copy(originalColor).multiplyScalar(0.14);
-            }
-        });
-
-        if (intersects.length > 0) {
-            canvasElement.style.cursor = 'pointer';
-            const top = intersects[0].object;
-            if (top.material && top.material.emissive) {
-                top.material.emissive.set(0x00ffcc);
-            }
-        } else {
-            canvasElement.style.cursor = 'grab';
-        }
-    }
-}
-
-function onPointerUp(event) {
-    if (isModalOpen || currentView !== 'network') return;
-    event.preventDefault();
-    updateMouseCoords(event);
-    const p = getPointerCoordinates(event, true);
-
-    if (draggedNode) {
-        const distanceMoved = Math.hypot(p.clientX - clickStartScreen.x, p.clientY - clickStartScreen.y);
-
-        if (draggedNode.material && draggedNode.material.emissive) {
-            const originalColor = new THREE.Color(draggedNode.userData.color);
-            draggedNode.material.emissive.copy(originalColor).multiplyScalar(0.14);
-        }
-
-        if (distanceMoved < CLICK_THRESHOLD) {
-            showProjectModal(draggedNode.userData);
-        } else {
-            const flickX = (p.clientX - clickStartScreen.x) * 0.008;
-            const flickY = (p.clientY - clickStartScreen.y) * 0.008;
-            draggedNode.userData.vel.set(flickX, -flickY, 0).applyQuaternion(camera.quaternion).multiplyScalar(10);
-        }
-
-        draggedNode = null;
-        controls.enabled = true;
-    } else {
-        raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(nodeGroup.children, true);
-        if (intersects.length > 0) {
-            const hit = intersects[0];
-            showProjectModal(hit.object.userData);
-        }
-    }
-}
-
-
-    /* ---------- Create stars/galaxy / nodes ---------- */
-    function createBackgroundStars(count = 800) {
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(count * 3);
-        const colors = new Float32Array(count * 3);
-        const color = new THREE.Color();
-
-        for (let i = 0; i < count; i++) {
-            const r = Math.random() * 700 + 50;
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos(Math.random() * 2 - 1);
-
-            positions[i*3 + 0] = r * Math.sin(phi) * Math.cos(theta);
-            positions[i*3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-            positions[i*3 + 2] = r * Math.cos(phi);
-
-            color.setHSL(Math.random() * 0.2 + 0.5, 0.6, Math.random() * 0.5 + 0.3);
-            colors[i*3 + 0] = color.r;
-            colors[i*3 + 1] = color.g;
-            colors[i*3 + 2] = color.b;
-        }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        
-        const starTexture = createCircleTexture();
-
-       const material = new THREE.PointsMaterial({
-    size: 2,
-    vertexColors: true,
-    transparent: true,
-    sizeAttenuation: true,
-    blending: THREE.AdditiveBlending,
-    map: starTexture,
-    depthWrite: false,   // <--- stops stars from occluding spheres
-    depthTest: false,    // <--- allows clicks to pass through
-});
-
-        const stars = new THREE.Points(geometry, material);
-stars.renderOrder = -1;
-stars.layers.set(1);
-scene.add(stars);
-
-
-   function createGalaxyNetwork() {
-    const sphereGeo = new THREE.SphereGeometry(NODE_RADIUS, 32, 32);
-    const textureLoader = new THREE.TextureLoader();
-
-    // Clear existing nodes (avoid duplicates if reinit)
-    nodes.length = 0;
-    nodeGroup.clear();
-
-    ARTWORKS.forEach(data => {
-        // Random spherical placement inside galaxy radius
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos(Math.random() * 2 - 1);
-        const r = Math.random() * GALAXY_RADIUS;
-
-        const material = new THREE.MeshStandardMaterial({
-            color: new THREE.Color(data.color),
-            metalness: 0.08,
-            roughness: 0.45,
-            emissive: new THREE.Color(data.color).multiplyScalar(0.14)
-        });
-
-        const sphere = new THREE.Mesh(sphereGeo, material);
-        sphere.position.set(
-            r * Math.sin(phi) * Math.cos(theta),
-            r * Math.sin(phi) * Math.sin(theta),
-            r * Math.cos(phi)
-        );
-
-        // Load texture image inside sphere
-        textureLoader.load(
-            data.image_path,
-            (texture) => {
-                sphere.material.map = texture;
-                sphere.material.color.set(0xffffff);
-                sphere.material.needsUpdate = true;
-            },
-            undefined,
-            (error) => {
-                console.warn(`Texture load failed for ${data.id}:`, error);
-                sphere.material.color.set(data.color);
-            }
-        );
-
-        // Store data and orbital parameters
-        sphere.userData = {
-            ...data,
-            originalPosition: sphere.position.clone(),
-            animationOffset: Math.random() * Math.PI * 2,
-            vel: new THREE.Vector3(0, 0, 0),
-            isNode: true,
-            orbitRadius: Math.random() * 2 + 1.5,
-            orbitSpeed: Math.random() * 0.0005 + 0.0002,
-        };
-
-        // Important — ensure spheres can receive raycaster hits
-        sphere.layers.enable(0);
-        sphere.material.transparent = true;
-        sphere.material.depthWrite = true;
-        sphere.material.depthTest = true;
-
-        nodeGroup.add(sphere);
-        nodes.push(sphere);
-    });
-
-    // Create edges (optional)
-    lineGroup.clear();
-    edges.length = 0;
-
-    EDGES.forEach(edge => {
-        const nodeA = nodes.find(n => n.userData.id === edge.from);
-        const nodeB = nodes.find(n => n.userData.id === edge.to);
-        if (!nodeA || !nodeB) return;
-
-        const geom = new THREE.BufferGeometry();
-        const positions = new Float32Array(6);
-        geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-        const mat = new THREE.LineBasicMaterial({ 
-            color: 0x444444, 
-            transparent: true, 
-            opacity: 0.7 
-        });
-
-        const line = new THREE.Line(geom, mat);
-        lineGroup.add(line);
-
-        edges.push({ mesh: line, nodeA, nodeB });
-    });
-}
-
-    /* ---------- Labels (2D) ---------- */
-    function createLabels() {
-        const labelContainer = document.getElementById('label-container');
-        nodes.forEach(node => {
-            const d = node.userData;
-            const label = document.createElement('div');
-            // Tailwind classes applied here
-            label.className = 'node-label absolute pointer-events-none -translate-x-1/2 -translate-y-full p-1.5 rounded-md bg-black/70 border border-white/5 text-xs whitespace-nowrap z-30 transition-opacity';
-            label.id = `label-${d.id}`;
-            label.textContent = d.title;
-            d._labelEl = label; // store reference
-            labelContainer.appendChild(label);
-        });
-    }
-
-    function updateLabels() {
-        nodes.forEach(node => {
-            const label = node.userData._labelEl;
-            if (!label) return;
+        for (let i = 0; i < STAR_CONFIG.COUNT; i++) {
+            const r = Math.random() * STAR_CONFIG.GENERATION_RADIUS;
+            const theta = Math.random() * Math.PI; 
+            const phi = Math.random() * 2 * Math.PI; 
             
-            // Only update/show labels if we are in the network view
-            if (currentView !== 'network') {
-                label.style.display = 'none';
-                return;
-            }
+            const spherical = new THREE.Spherical(r, theta, phi);
+            const pos = new THREE.Vector3().setFromSpherical(spherical);
 
+            vertices.push(pos.x, pos.y, pos.z);
+            starPositions.push(pos.x, pos.y, pos.z);
+
+            color.set(STAR_CONFIG.BASE_COLOR_TINT);
+            color.offsetHSL(
+                (Math.random() - 0.5) * 0.05, 
+                (Math.random() - 0.5) * 0.1,  
+                (Math.random() - 0.5) * 0.1   
+            );
+            colors.push(color.r, color.g, color.b);
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+        const starTexture = createStarTexture();
+
+        const material = new THREE.PointsMaterial({
+            size: STAR_CONFIG.BASE_SIZE,
+            sizeAttenuation: STAR_CONFIG.SIZE_ATTENUATION,
+            vertexColors: true,
+            transparent: true,
+            opacity: 1.0, 
+            map: starTexture, 
+            blending: THREE.AdditiveBlending, 
+            depthWrite: false, 
+        });
+
+        starField = new THREE.Points(geometry, material);
+        scene.add(starField);
+    }
+
+    /**
+     * Loads a texture and applies it to a node's material.
+     * @param {THREE.Mesh} node - The Three.js mesh object for the node.
+     * @param {string} imagePath - The URL path to the image texture.
+     */
+    function loadNodeTexture(node, imagePath) {
+        if (imagePath) {
+            textureLoader.load(
+                imagePath,
+                // Success callback
+                function (texture) {
+                    // Create a new material using the existing node color/properties
+                    // and apply the map for the image.
+                    const newMaterial = node.material.clone();
+                    newMaterial.map = texture;
+                    newMaterial.needsUpdate = true;
+                    node.material = newMaterial;
+                },
+                // Progress callback (optional)
+                undefined,
+                // Error callback
+                function (err) {
+                    console.error('An error happened while loading the node texture for:', node.userData.title, err);
+                    // Fallback: keep the colored material
+                }
+            );
+        }
+    }
+
+    function generateNetwork() {
+        
+        // 1. Generate Nodes (Spheres)
+        ARTWORKS.forEach((data, i) => {
+            // Calculate a random radius for the current sphere
+            const nodeRadius = MIN_NODE_SIZE + (Math.random() * (MAX_NODE_SIZE - MIN_NODE_SIZE));
+            
+            const nodeGeometry = new THREE.SphereGeometry(nodeRadius, 32, 32); 
+            
+            const initialMaterial = new THREE.MeshLambertMaterial({ 
+                color: new THREE.Color(data.color), 
+                emissive: new THREE.Color(0x0a0a0a), 
+                emissiveIntensity: 1.0 
+            });
+
+            const node = new THREE.Mesh(nodeGeometry, initialMaterial);
+
+            const r = Math.random() * GALAXY_RADIUS;
+            const theta = Math.random() * Math.PI; 
+            const phi = Math.random() * 2 * Math.PI; 
+            
+            const spherical = new THREE.Spherical(r, theta, phi);
+            node.position.copy(new THREE.Vector3().setFromSpherical(spherical));
+
+            node.userData = {
+                ...data,
+                // Store the calculated radius for reference or scaling later
+                radius: nodeRadius, 
+                originalPosition: node.position.clone(),
+                vel: new THREE.Vector3(),
+                orbitRadius: 5 + Math.random() * 5,
+                orbitSpeed: 0.0005 + Math.random() * 0.0005,
+                animationOffset: Math.random() * 2 * Math.PI,
+                
+                originalEmissive: initialMaterial.emissive.clone(),
+                originalEmissiveIntensity: initialMaterial.emissiveIntensity,
+                edges: [], 
+            };
+            node.name = 'node';
+
+            const label = document.createElement('div');
+            label.className = 'node-label bg-gray-900/50 text-white border border-gray-700 hover:bg-indigo-500/50';
+            label.textContent = data.title;
+            label.dataset.id = data.id; 
+            label.addEventListener('click', () => showProjectModal(data));
+            labelContainer.appendChild(label);
+
+            nodes.push(node);
+            labels.push(label);
+            scene.add(node);
+
+            loadNodeTexture(node, data.image_path);
+        });
+
+        // 2. Generate Edges (Lines)
+        const edgeMaterial = new THREE.LineBasicMaterial({
+            color: 0x4a4e69,
+            opacity: 0.2,
+            transparent: true,
+            linewidth: 1
+        });
+
+        for (let i = 0; i < nodes.length; i++) {
+            for (let j = i + 1; j < nodes.length; j++) {
+                if (Math.random() < CONNECTION_DENSITY) {
+                    const nodeA = nodes[i];
+                    const nodeB = nodes[j];
+
+                    const geometry = new THREE.BufferGeometry().setFromPoints([
+                        nodeA.position.clone(),
+                        nodeB.position.clone()
+                    ]);
+                    const line = new THREE.Line(geometry, edgeMaterial.clone());
+                    line.name = 'edge';
+
+                    const edgeData = {
+                        mesh: line,
+                        nodeA: nodeA,
+                        nodeB: nodeB,
+                        originalOpacity: edgeMaterial.opacity
+                    };
+
+                    nodeA.userData.edges.push(edgeData);
+                    nodeB.userData.edges.push(edgeData);
+
+                    edges.push(edgeData);
+                    scene.add(line);
+                }
+            }
+        }
+    }
+
+    /**
+     * Highlights the hovered node and its connected edges by boosting its emissive property.
+     */
+    function highlightNode(node) {
+        if (hoveredNode) {
+            // Reset previous hovered node emissive/highlight
+            hoveredNode.material.emissive.copy(hoveredNode.userData.originalEmissive);
+            hoveredNode.material.emissiveIntensity = hoveredNode.userData.originalEmissiveIntensity;
+            
+            // Reset edges
+            hoveredNode.userData.edges.forEach(e => {
+                e.mesh.material.opacity = e.originalOpacity || 0.2;
+                e.mesh.material.color.setHex(0x4a4e69); 
+            });
+        }
+
+        if (node && node !== draggedNode) {
+            hoveredNode = node;
+            
+            // Apply highlight glow
+            hoveredNode.material.emissive.setHex(0xffffff); 
+            hoveredNode.material.emissiveIntensity = 3.5; 
+            
+            // Highlight edges
+            hoveredNode.userData.edges.forEach(e => {
+                e.mesh.material.opacity = 0.8;
+                e.mesh.material.color.set(hoveredNode.userData.color);
+            });
+        } else {
+            hoveredNode = null;
+        }
+    }
+
+    /**
+     * Applies a subtle drifting motion to the stars.
+     */
+    function updateStars(time) {
+        if (!starField) return;
+
+        const positions = starField.geometry.attributes.position.array;
+        const driftSpeed = STAR_CONFIG.STAR_ORBIT_SPEED;
+        const maxDrift = STAR_CONFIG.STAR_MAX_DRIFT;
+        
+        for (let i = 0; i < positions.length; i += 3) {
+            const originalX = starPositions[i];
+            const originalY = starPositions[i + 1];
+            const originalZ = starPositions[i + 2];
+
+            positions[i] = originalX + Math.sin(time * driftSpeed + i) * maxDrift * 0.05;
+            positions[i + 1] = originalY + Math.cos(time * driftSpeed * 1.5 + i) * maxDrift * 0.05;
+            positions[i + 2] = originalZ + Math.sin(time * driftSpeed * 0.7 + i) * maxDrift * 0.05;
+        }
+
+        starField.geometry.attributes.position.needsUpdate = true;
+    }
+
+    /**
+     * Converts 3D node positions to 2D screen coordinates and updates HTML labels.
+     */
+    function updateLabels() {
+        nodes.forEach((node, index) => {
+            const label = labels[index];
+
+            // 1. Project 3D position to 2D screen space
             tempV.setFromMatrixPosition(node.matrixWorld);
             tempV.project(camera);
 
             const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
             const y = (-tempV.y * 0.5 + 0.5) * window.innerHeight;
-            // Visible if within frustum (z < 1) and its 3D object is set to visible
+            
             const visible = node.visible && tempV.z < 1; 
 
+            // 2. Set position and visibility
             label.style.left = `${x}px`;
             label.style.top = `${y}px`;
             label.style.display = visible ? 'block' : 'none';
 
-            // fade based on distance from camera
+            // 3. Fade based on distance from camera
             const distance = camera.position.distanceTo(node.position);
-            // Label opacity fades out between 100 (full opacity) and 300 (zero opacity) distance
             const opacity = Math.min(1.0, Math.max(0, (300 - distance) / 200));
             label.style.opacity = visible ? opacity : 0;
         });
@@ -699,8 +607,12 @@ scene.add(stars);
     function animate(time) {
         requestAnimationFrame(animate);
         
-        // Only run physics/render if in network view
+        // 1. Update stars
+        updateStars(time);
+
         if (currentView !== 'network') {
+            controls.update();
+            renderer.render(scene, camera);
             return;
         }
 
@@ -709,56 +621,61 @@ scene.add(stars);
 
         visibleNodes.forEach(node => {
             const data = node.userData;
+            const nodeRadius = data.radius || 1.5; // Use stored radius for pulse calculation
 
-            // 1. Force Simulation Logic
+            // 2. Force Simulation Logic
             if (node !== draggedNode) {
                 
-                // --- ORBITING ANCHOR POINT LOGIC (for subtle movement) ---
+                // --- ORBITING ANCHOR POINT LOGIC ---
                 const orbitTarget = data.originalPosition.clone();
                 const orbitAngle = t * data.orbitSpeed + data.animationOffset;
                 
-                // Calculate a small, circular displacement 
                 orbitTarget.x += Math.cos(orbitAngle) * data.orbitRadius;
                 orbitTarget.z += Math.sin(orbitAngle) * data.orbitRadius;
                 orbitTarget.y += Math.sin(orbitAngle * 0.5) * (data.orbitRadius / 2);
 
-                // a. Spring Force (pull towards the SLIGHTLY ORBITING anchor point)
+                // a. Spring Force 
                 const diffSpring = new THREE.Vector3().subVectors(orbitTarget, node.position);
                 data.vel.add(diffSpring.multiplyScalar(K_SPRING_CENTER));
 
-                // b. Repulsion Force
+                // b. Repulsion Force - Adjusted repulsion based on node size
                 const repulsionForce = new THREE.Vector3();
                 visibleNodes.forEach(otherNode => {
-                    if (node.id === otherNode.id) return;
+                    if (node.uuid === otherNode.uuid) return; 
 
                     const diffRepel = new THREE.Vector3().subVectors(node.position, otherNode.position);
                     const distanceSq = diffRepel.lengthSq() || 0.1;
                     
-                    const forceMagnitude = K_REPEL_NODE / distanceSq;
+                    // Repulsion force is stronger if the nodes are larger
+                    const combinedRadius = nodeRadius + (otherNode.userData.radius || 1.5);
+                    const K_ADJUSTED = K_REPEL_NODE * combinedRadius;
+
+                    const forceMagnitude = K_ADJUSTED / distanceSq;
 
                     repulsionForce.add(diffRepel.normalize().multiplyScalar(forceMagnitude));
                 });
                 data.vel.add(repulsionForce);
             }
 
-            // 2. Apply velocity and damping
+            // 3. Apply velocity and damping
             if (data.vel.length() > MAX_VELOCITY) {
-            data.vel.normalize().multiplyScalar(MAX_VELOCITY); // <--- STABILITY FIX (NEW)
+                data.vel.normalize().multiplyScalar(MAX_VELOCITY); 
             }
             node.position.add(data.vel);
             data.vel.multiplyScalar(VELOCITY_DAMPING);
 
-            // 3. Simple Visual Pulse (Scaling)
+            // 4. Simple Visual Pulse (Scaling) - Pulse proportional to size
             const pulse = Math.sin(t * 0.001 + data.animationOffset) * 0.5;
-            node.scale.setScalar(1 + pulse * 0.05);
+            // Scale around the base size (1.0)
+            node.scale.setScalar(1 + (pulse * 0.05)); 
 
-            // 4. Keep network bounded
+            // 5. Keep network bounded
             if (node.position.length() > GALAXY_RADIUS * 1.4) {
                 node.position.multiplyScalar(0.995); 
             }
         });
 
-        // update edge positions
+        // 6. Update edge positions
         edges.forEach(e => {
             if (e.nodeA.visible && e.nodeB.visible) {
                 const arr = e.mesh.geometry.attributes.position.array;
@@ -775,10 +692,98 @@ scene.add(stars);
             }
         });
 
+        // 7. Raycasting for hover/interaction (Desktop/Mouse only)
+        if (!draggedNode && !event.touches) {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(nodes);
+            highlightNode(intersects.length > 0 ? intersects[0].object : null);
+        }
+        
         controls.update();
         updateLabels();
         renderer.render(scene, camera);
     }
+
+    /**
+     * Helper function to get normalized coordinates from mouse or touch events.
+     */
+    function getNormalizedCoordinates(event) {
+        // Use the first touch point if it's a touch event, otherwise use the mouse event
+        const input = event.touches ? event.touches[0] : event;
+        mouse.x = (input.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(input.clientY / window.innerHeight) * 2 + 1;
+    }
+
+
+    /* ---------- Unified Input Handlers for Mouse and Touch ---------- */
+
+    function onInputDown(event) {
+        // Prevent default browser actions for touch to allow dragging
+        event.preventDefault(); 
+        
+        getNormalizedCoordinates(event);
+        
+        // Disable controls temporarily while we check for a node hit
+        controls.enabled = false;
+        
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(nodes);
+
+        if (intersects.length > 0) {
+            draggedNode = intersects[0].object;
+            // Prevent camera orbit when clicking/tapping a node
+            isDraggingCanvas = false;
+        } else {
+             // If no node is hit, allow canvas dragging/orbiting
+            isDraggingCanvas = true;
+            controls.enabled = true; // Re-enable controls if no node is hit
+        }
+    }
+
+    function onInputMove(event) {
+        event.preventDefault();
+
+        getNormalizedCoordinates(event);
+
+        if (draggedNode) {
+            // If dragging a node, update its 3D position
+            raycaster.setFromCamera(mouse, camera);
+
+            // Use the distance from the camera to the node's original Z position
+            const distance = camera.position.distanceTo(draggedNode.position);
+            const plane = new THREE.Plane(camera.position.clone().normalize(), -distance);
+            const intersectPoint = new THREE.Vector3();
+
+            if (raycaster.ray.intersectPlane(plane, intersectPoint)) {
+                // Move the node to the calculated point
+                draggedNode.position.copy(intersectPoint);
+                draggedNode.userData.vel.set(0, 0, 0); // Kill velocity while dragging
+            }
+        }
+    }
+
+    function onInputUp(event) {
+        event.preventDefault();
+
+        // Re-enable controls after the drag/click/tap is finished
+        controls.enabled = true; 
+        
+        draggedNode = null;
+        isDraggingCanvas = false;
+    }
+    
+    function onInputDoubleClick(event) {
+        // Double-click to open modal on node (Desktop only)
+        event.preventDefault();
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(nodes);
+
+        if (intersects.length > 0) {
+            showProjectModal(intersects[0].object.userData);
+        }
+    }
+
 
     /* ---------- Resize ---------- */
     function onWindowResize() {
@@ -790,7 +795,7 @@ scene.add(stars);
 
     /* ---------- Filtering UI ---------- */
     function populateFilterMenu() {
-        const uniqueCategories = Array.from(new Set(ARTWORKS.map(a => a.category))).sort();
+        const uniqueCategories = Array.from(new Set(ARTWORKS.map(a => a.category))).sort(); 
         const categoryFilter = document.getElementById('category-filter');
         categoryFilter.innerHTML = '';
         const allOption = document.createElement('option');
@@ -815,7 +820,7 @@ scene.add(stars);
         });
     }
 
-    /* ========== Modal logic (robust, mobile-friendly) ========== */
+    /* ========== Project Modal logic ========== */
     function findProjectIndexById(id) {
         return ARTWORKS.findIndex(a => a.id === id);
     }
@@ -825,14 +830,15 @@ scene.add(stars);
 
         modalDetailsDiv.innerHTML = `
             <header>
-                <h3 id="modal-title" class="text-xl font-extrabold">${escapeHtml(data.title)}</h3>
-                <p class="category text-xs font-bold uppercase tracking-widest mt-1 mb-3">${escapeHtml(data.category)}</p>
+                <h3 id="modal-title" class="text-3xl font-extrabold text-indigo-400">${escapeHtml(data.title)}</h3>
+                <p class="category text-sm font-bold uppercase tracking-widest mt-1 mb-3 text-gray-500">${escapeHtml(data.category)}</p>
             </header>
-            <div class="image-card rounded-xl overflow-hidden shadow-lg mb-4">
+            <div class="image-card rounded-xl overflow-hidden shadow-lg mb-4 border border-gray-700/50">
                 <img src="${escapeAttr(data.image_path)}" alt="${escapeAttr(data.title)}"
                     class="w-full h-56 object-cover md:h-72"
-                    onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Image+Missing';">
-                <div class="description p-3 text-gray-400 text-sm italic">
+                    onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Image+Missing';"
+                    loading="lazy">
+                <div class="description p-3 text-gray-400 text-sm italic bg-gray-800/50">
                     ${escapeHtml(data.description)}
                 </div>
             </div>
@@ -856,6 +862,8 @@ scene.add(stars);
             console.error("Project data not found for ID:", id);
             return;
         }
+        
+        closeAboutModal();
 
         isModalOpen = true;
         document.body.style.overflow = 'hidden';
@@ -872,7 +880,6 @@ scene.add(stars);
 
         let newIndex = currentProjectIndex + direction;
 
-        // Wrap-around logic
         if (newIndex < 0) {
             newIndex = ARTWORKS.length - 1;
         } else if (newIndex >= ARTWORKS.length) {
@@ -893,14 +900,31 @@ scene.add(stars);
 
     function handleFullProjectClick() {
         if (!currentProjectUrl) return;
-        actionMessage.textContent = `Opening ${currentProjectUrl}`;
-        actionMessage.classList.remove('hidden');
+        actionMessage.textContent = `Opening ${currentProjectUrl} in a new tab...`;
+        actionMessage.style.display = 'block';
         window.open(currentProjectUrl, '_blank', 'noopener');
         setTimeout(() => {
-            actionMessage.classList.add('hidden');
             closeProjectModal();
         }, 900);
     }
+    
+    /* ========== About Modal Logic ========== */
+    
+    function showAboutModal() {
+        if (isModalOpen) {
+            closeProjectModal();
+        }
+        document.body.style.overflow = 'hidden';
+        aboutModal.classList.remove('hidden');
+        aboutModal.style.display = 'flex';
+    }
+
+    function closeAboutModal() {
+        aboutModal.style.display = 'none';
+        aboutModal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
 
     /* ---------- small helpers to protect injected HTML ---------- */
     function escapeHtml(str = '') {
@@ -915,11 +939,6 @@ scene.add(stars);
 
     /* ---------- Start ---------- */
     window.onload = init;
-    </script>
+</script>
 </body>
 </html>
-
-
-
-
-
