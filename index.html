@@ -410,115 +410,110 @@
         return new THREE.CanvasTexture(canvas);
     }
 
-    /* ---------- Event handlers ---------- */
-    function onPointerDown(event) {
-        if (isModalOpen || currentView !== 'network') return;
-        event.preventDefault();
-        const p = getPointerCoordinates(event, false);
-        clickStartScreen.x = p.clientX;
-        clickStartScreen.y = p.clientY;
+  /* ---------- Event handlers (fixed) ---------- */
+function updateMouseCoords(event) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+}
 
-        // cast ray
+function onPointerDown(event) {
+    if (isModalOpen || currentView !== 'network') return;
+    event.preventDefault();
+    updateMouseCoords(event);
+    const p = getPointerCoordinates(event, false);
+    clickStartScreen.x = p.clientX;
+    clickStartScreen.y = p.clientY;
+
+    raycaster.setFromCamera(mouse, camera);
+    const intersects = raycaster.intersectObjects(nodeGroup.children, true);
+
+    if (intersects.length > 0) {
+        const hit = intersects[0];
+        draggedNode = hit.object;
+        controls.enabled = false;
+
+        const camDir = new THREE.Vector3();
+        camera.getWorldDirection(camDir);
+        plane.setFromNormalAndCoplanarPoint(camDir, hit.point);
+        offset.copy(hit.point).sub(draggedNode.position);
+
+        if (draggedNode.material && draggedNode.material.emissive) {
+            draggedNode.material.emissive.set(0x00ff00);
+        }
+    } else {
+        draggedNode = null;
+    }
+}
+
+function onPointerMove(event) {
+    if (isModalOpen || currentView !== 'network') return;
+    event.preventDefault();
+    updateMouseCoords(event);
+
+    if (draggedNode) {
         raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(nodeGroup.children, false);
+        if (raycaster.ray.intersectPlane(plane, intersection)) {
+            draggedNode.position.copy(intersection).sub(offset);
+            draggedNode.userData.vel.set(0, 0, 0);
+        }
+    } else {
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(nodeGroup.children, true);
+
+        nodeGroup.children.forEach(n => {
+            if (n.material && n.userData && n.userData.isNode) {
+                const originalColor = new THREE.Color(n.userData.color);
+                n.material.emissive.copy(originalColor).multiplyScalar(0.14);
+            }
+        });
 
         if (intersects.length > 0) {
+            canvasElement.style.cursor = 'pointer';
+            const top = intersects[0].object;
+            if (top.material && top.material.emissive) {
+                top.material.emissive.set(0x00ffcc);
+            }
+        } else {
+            canvasElement.style.cursor = 'grab';
+        }
+    }
+}
+
+function onPointerUp(event) {
+    if (isModalOpen || currentView !== 'network') return;
+    event.preventDefault();
+    updateMouseCoords(event);
+    const p = getPointerCoordinates(event, true);
+
+    if (draggedNode) {
+        const distanceMoved = Math.hypot(p.clientX - clickStartScreen.x, p.clientY - clickStartScreen.y);
+
+        if (draggedNode.material && draggedNode.material.emissive) {
+            const originalColor = new THREE.Color(draggedNode.userData.color);
+            draggedNode.material.emissive.copy(originalColor).multiplyScalar(0.14);
+        }
+
+        if (distanceMoved < CLICK_THRESHOLD) {
+            showProjectModal(draggedNode.userData);
+        } else {
+            const flickX = (p.clientX - clickStartScreen.x) * 0.008;
+            const flickY = (p.clientY - clickStartScreen.y) * 0.008;
+            draggedNode.userData.vel.set(flickX, -flickY, 0).applyQuaternion(camera.quaternion).multiplyScalar(10);
+        }
+
+        draggedNode = null;
+        controls.enabled = true;
+    } else {
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(nodeGroup.children, true);
+        if (intersects.length > 0) {
             const hit = intersects[0];
-            draggedNode = hit.object;
-            controls.enabled = false;
-
-            // plane normal - use camera direction
-            const camDir = new THREE.Vector3();
-            camera.getWorldDirection(camDir);
-            plane.setFromNormalAndCoplanarPoint(camDir, hit.point);
-            offset.copy(hit.point).sub(draggedNode.position);
-
-            // highlight while dragging
-            if (draggedNode.material && draggedNode.material.emissive) {
-                // Set emissive to a temporary bright green for feedback
-                draggedNode.material.emissive.set(0x00ff00);
-            }
-        } else {
-            draggedNode = null;
+            showProjectModal(hit.object.userData);
         }
     }
+}
 
-    function onPointerMove(event) {
-        if (isModalOpen || currentView !== 'network') return;
-        event.preventDefault();
-        getPointerCoordinates(event, false);
-
-        if (draggedNode) {
-            raycaster.setFromCamera(mouse, camera);
-            if (raycaster.ray.intersectPlane(plane, intersection)) {
-                draggedNode.position.copy(intersection).sub(offset);
-                // Zero out velocity when actively dragging
-                draggedNode.userData.vel.set(0, 0, 0);
-            }
-        } else {
-            // hover effect
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(nodeGroup.children, false);
-
-            // reset emissive for all nodes
-            nodeGroup.children.forEach(n => {
-                if (n.material && n.userData && n.userData.isNode) {
-                    // restore subtle emissive based on its original color
-                    const originalColor = new THREE.Color(n.userData.color);
-                    n.material.emissive.copy(originalColor).multiplyScalar(0.14);
-                }
-            });
-
-            if (intersects.length > 0) {
-                canvasElement.style.cursor = 'pointer';
-                const top = intersects[0].object;
-                if (top.material && top.material.emissive) {
-                    // Highlight on hover
-                    top.material.emissive.set(0x00ffcc);
-                }
-            } else {
-                canvasElement.style.cursor = 'grab';
-            }
-        }
-    }
-
-    function onPointerUp(event) {
-        if (isModalOpen || currentView !== 'network') return;
-        event.preventDefault();
-        const p = getPointerCoordinates(event, true);
-
-        if (draggedNode) {
-            const distanceMoved = Math.hypot(p.clientX - clickStartScreen.x, p.clientY - clickStartScreen.y);
-
-            // restore emissive for the now-released node
-            if (draggedNode.material && draggedNode.material.emissive) {
-                const originalColor = new THREE.Color(draggedNode.userData.color);
-                draggedNode.material.emissive.copy(originalColor).multiplyScalar(0.14);
-            }
-
-            if (distanceMoved < CLICK_THRESHOLD) {
-                // treat as click/tap
-                showProjectModal(draggedNode.userData);
-            } else {
-                // flick: apply a small initial velocity
-                const flickX = (p.clientX - clickStartScreen.x) * 0.008;
-                const flickY = (p.clientY - clickStartScreen.y) * 0.008;
-                // Convert screen motion to 3D velocity relative to camera direction
-                draggedNode.userData.vel.set(flickX, -flickY, 0).applyQuaternion(camera.quaternion).multiplyScalar(10);
-            }
-
-            draggedNode = null;
-            controls.enabled = true;
-        } else {
-            // If pointer up without previously pressing a node, check if we released on a node
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(nodeGroup.children, false);
-            if (intersects.length > 0) {
-                const hit = intersects[0];
-                showProjectModal(hit.object.userData);
-            }
-        }
-    }
 
     /* ---------- Create stars/galaxy / nodes ---------- */
     function createBackgroundStars(count = 800) {
@@ -904,5 +899,6 @@
     </script>
 </body>
 </html>
+
 
 
