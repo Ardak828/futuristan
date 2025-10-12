@@ -827,32 +827,51 @@ function getPointerCoordinates(event, isEnd = false) {
     }
     
     function renderProjectDetails(data) {
-        currentProjectUrl = data.url || '';
+    // Defensive defaults
+    const safeData = Object.assign({
+        title: '',
+        category: '',
+        image_path: '',
+        description: '',
+        tags: [],
+        color: '#7c3aed',
+        url: ''
+    }, data || {});
 
-        modalDetailsDiv.innerHTML = `
-            <header>
-                <h3 id="modal-title" class="text-xl font-extrabold">${escapeHtml(data.title)}</h3>
-                <p class="category text-xs font-bold uppercase tracking-widest mt-1 mb-3">${escapeHtml(data.category)}</p>
-            </header>
-            <div class="image-card rounded-xl overflow-hidden shadow-lg mb-4">
-                <img src="${escapeAttr(data.image_path)}" alt="${escapeAttr(data.title)}"
-                    class="w-full h-56 object-cover md:h-72"
-                    onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Image+Missing';">
-                <div class="description p-3 text-gray-400 text-sm italic">
-                    ${escapeHtml(data.description)}
-                </div>
-            </div>
-            <div class="tag-container flex flex-wrap gap-2 mt-3">
-                ${data.tags.map(t => `<span class="tag text-xs font-bold px-3 py-1 rounded-full text-gray-300">${escapeHtml(t)}</span>`).join('')}
-            </div>
-            <div class="color-indicator flex gap-2 items-center mt-3 font-mono text-xs">
-                <div class="color-swatch w-4 h-4 rounded-full border border-white/10" style="background:${escapeAttr(data.color)}"></div>
-                <div style="opacity:0.9">${escapeHtml(data.color)}</div>
-            </div>
-        `;
+    // Ensure tags is an array
+    const tagsArray = Array.isArray(safeData.tags) ? safeData.tags : [];
 
-        actionMessage.style.display = 'none';
-    }
+    currentProjectUrl = safeData.url || '';
+
+    // Build tags HTML safely
+    const tagsHtml = tagsArray.length
+        ? tagsArray.map(t => `<span class="tag text-xs font-bold px-3 py-1 rounded-full text-gray-300">${escapeHtml(t)}</span>`).join('')
+        : '';
+
+    modalDetailsDiv.innerHTML = `
+        <header>
+            <h3 id="modal-title" class="text-xl font-extrabold">${escapeHtml(safeData.title)}</h3>
+            <p class="category text-xs font-bold uppercase tracking-widest mt-1 mb-3">${escapeHtml(safeData.category)}</p>
+        </header>
+        <div class="image-card rounded-xl overflow-hidden shadow-lg mb-4">
+            <img src="${escapeAttr(safeData.image_path)}" alt="${escapeAttr(safeData.title)}"
+                class="w-full h-56 object-cover md:h-72"
+                onerror="this.onerror=null;this.src='https://placehold.co/600x200/1F2937/FFFFFF?text=Image+Missing';">
+            <div class="description p-3 text-gray-400 text-sm italic">
+                ${escapeHtml(safeData.description)}
+            </div>
+        </div>
+        <div class="tag-container flex flex-wrap gap-2 mt-3">
+            ${tagsHtml}
+        </div>
+        <div class="color-indicator flex gap-2 items-center mt-3 font-mono text-xs">
+            <div class="color-swatch w-4 h-4 rounded-full border border-white/10" style="background:${escapeAttr(safeData.color)}"></div>
+            <div style="opacity:0.9">${escapeHtml(safeData.color)}</div>
+        </div>
+    `;
+
+    actionMessage.style.display = 'none';
+}
 
     function showProjectModal(data) {
         const id = data.id;
@@ -924,4 +943,5 @@ function getPointerCoordinates(event, isEnd = false) {
     </script>
 </body>
 </html>
+
 
