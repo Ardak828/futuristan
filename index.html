@@ -872,6 +872,20 @@ function getPointerCoordinates(event, isEnd = false) {
 
     actionMessage.style.display = 'none';
 
+         // Safely reset scroll position — only if elements exist and are scrollable
+    requestAnimationFrame(() => {
+        try {
+            if (modalDetailsDiv && modalDetailsDiv.scrollTo) {
+                modalDetailsDiv.scrollTo({ top: 0, behavior: 'instant' });
+            }
+            if (modal && modal.scrollTo) {
+                modal.scrollTo({ top: 0, behavior: 'instant' });
+            }
+        } catch (err) {
+            console.warn('Scroll reset skipped:', err);
+        }
+    });
+
 }
 
     function showProjectModal(data) {
@@ -944,6 +958,7 @@ function getPointerCoordinates(event, isEnd = false) {
     </script>
 </body>
 </html>
+
 
 
 
