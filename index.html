@@ -555,80 +555,95 @@ function onPointerUp(event) {
         scene.add(stars);
     }
 
-    function createGalaxyNetwork() {
-        const sphereGeo = new THREE.SphereGeometry(NODE_RADIUS, 32, 32);
-        const textureLoader = new THREE.TextureLoader();
+   function createGalaxyNetwork() {
+    const sphereGeo = new THREE.SphereGeometry(NODE_RADIUS, 32, 32);
+    const textureLoader = new THREE.TextureLoader();
 
-        ARTWORKS.forEach(data => {
-            // random spherical placement inside radius
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos(Math.random() * 2 - 1);
-            const r = Math.random() * GALAXY_RADIUS;
+    // Clear existing nodes (avoid duplicates if reinit)
+    nodes.length = 0;
+    nodeGroup.clear();
 
-            const material = new THREE.MeshStandardMaterial({
-                color: new THREE.Color(data.color),
-                metalness: 0.08,
-                roughness: 0.45,
-                emissive: new THREE.Color(data.color).multiplyScalar(0.14)
-            });
+    ARTWORKS.forEach(data => {
+        // Random spherical placement inside galaxy radius
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(Math.random() * 2 - 1);
+        const r = Math.random() * GALAXY_RADIUS;
 
-            const sphere = new THREE.Mesh(sphereGeo, material);
-            sphere.position.set(
-                r * Math.sin(phi) * Math.cos(theta),
-                r * Math.sin(phi) * Math.sin(theta),
-                r * Math.cos(phi)
-            );
-
-            // Load Texture/Placeholder Image
-            textureLoader.load(
-                data.image_path,
-                (texture) => {
-                    sphere.material.map = texture;
-                    sphere.material.color.set(0xffffff); 
-                    sphere.material.needsUpdate = true;
-                },
-                undefined,
-                (error) => {
-                    console.error(`Error loading texture for node ${data.id}:`, error);
-                    sphere.material.color.set(data.color);
-                    sphere.material.needsUpdate = true;
-                }
-            );
-
-            // store extended userData
-            sphere.userData = {
-                ...data,
-                originalPosition: sphere.position.clone(),
-                animationOffset: Math.random() * Math.PI * 2,
-                vel: new THREE.Vector3(0,0,0),
-                isNode: true,
-                // Orbital parameters
-                orbitRadius: Math.random() * 2 + 1.5,
-                orbitSpeed: Math.random() * 0.0005 + 0.0002,
-            };
-
-            nodeGroup.add(sphere);
-            nodes.push(sphere);
+        const material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(data.color),
+            metalness: 0.08,
+            roughness: 0.45,
+            emissive: new THREE.Color(data.color).multiplyScalar(0.14)
         });
 
-        // create edges lines
-        EDGES.forEach(edge => {
-            const nodeA = nodes.find(n => n.userData.id === edge.from);
-            const nodeB = nodes.find(n => n.userData.id === edge.to);
-            if (!nodeA || !nodeB) return;
+        const sphere = new THREE.Mesh(sphereGeo, material);
+        sphere.position.set(
+            r * Math.sin(phi) * Math.cos(theta),
+            r * Math.sin(phi) * Math.sin(theta),
+            r * Math.cos(phi)
+        );
 
-            const positions = new Float32Array(6);
-            const geom = new THREE.BufferGeometry();
-            geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        // Load texture image inside sphere
+        textureLoader.load(
+            data.image_path,
+            (texture) => {
+                sphere.material.map = texture;
+                sphere.material.color.set(0xffffff);
+                sphere.material.needsUpdate = true;
+            },
+            undefined,
+            (error) => {
+                console.warn(`Texture load failed for ${data.id}:`, error);
+                sphere.material.color.set(data.color);
+            }
+        );
 
-            const mat = new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.7 });
-            const line = new THREE.Line(geom, mat);
-            lineGroup.add(line);
+        // Store data and orbital parameters
+        sphere.userData = {
+            ...data,
+            originalPosition: sphere.position.clone(),
+            animationOffset: Math.random() * Math.PI * 2,
+            vel: new THREE.Vector3(0, 0, 0),
+            isNode: true,
+            orbitRadius: Math.random() * 2 + 1.5,
+            orbitSpeed: Math.random() * 0.0005 + 0.0002,
+        };
 
-            // Store edge data for easy updates
-            edges.push({ mesh: line, nodeA, nodeB });
+        // Important — ensure spheres can receive raycaster hits
+        sphere.layers.enable(0);
+        sphere.material.transparent = true;
+        sphere.material.depthWrite = true;
+        sphere.material.depthTest = true;
+
+        nodeGroup.add(sphere);
+        nodes.push(sphere);
+    });
+
+    // Create edges (optional)
+    lineGroup.clear();
+    edges.length = 0;
+
+    EDGES.forEach(edge => {
+        const nodeA = nodes.find(n => n.userData.id === edge.from);
+        const nodeB = nodes.find(n => n.userData.id === edge.to);
+        if (!nodeA || !nodeB) return;
+
+        const geom = new THREE.BufferGeometry();
+        const positions = new Float32Array(6);
+        geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+        const mat = new THREE.LineBasicMaterial({ 
+            color: 0x444444, 
+            transparent: true, 
+            opacity: 0.7 
         });
-    }
+
+        const line = new THREE.Line(geom, mat);
+        lineGroup.add(line);
+
+        edges.push({ mesh: line, nodeA, nodeB });
+    });
+}
 
     /* ---------- Labels (2D) ---------- */
     function createLabels() {
@@ -899,6 +914,7 @@ function onPointerUp(event) {
     </script>
 </body>
 </html>
+
 
 
 
