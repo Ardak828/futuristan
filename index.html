@@ -343,6 +343,16 @@ function getPointerCoordinates(event, isEnd = false) {
         aboutBtn.onclick = () => showView('about');
         backToNetworkBtn.onclick = () => showView('network');
 
+             // NEW CHANGE: Close 'about' view when clicking the overlay (the aboutContent element itself)
+        aboutContent.addEventListener('click', function(event) {
+            // CRITICAL CHECK: We only close the view if the click target 
+            // is the 'aboutContent' container and not one of the elements 
+            // inside the content box (like a paragraph, heading, or link).
+            if (event.target === aboutContent) {
+                showView('network');
+            }
+        });
+
 
         // fade out instructions after a few seconds
         setTimeout(() => {
@@ -964,6 +974,7 @@ function getPointerCoordinates(event, isEnd = false) {
     </script>
 </body>
 </html>
+
 
 
 
