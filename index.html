@@ -65,6 +65,15 @@
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
+    <!-- NEW LOGO ELEMENT: FIXED POSITION TOP RIGHT CORNER -->
+    <div id="logo-container" class="fixed top-4 right-4 z-50 p-2 md:top-8 md:right-8">
+    <img 
+        src="https://placehold.co/128x48/000000/FFFFFF/png?text=MY+LOGO" 
+        alt="Company Logo" 
+        class="h-10 md:h-12 w-auto rounded-lg shadow-xl hover:scale-105 transition-transform duration-300"
+        onerror="this.onerror=null; this.src='https://placehold.co/128x48/6366f1/ffffff?text=LOGO';"
+    >
+</div>
     <!-- Instructions (Tailwind classes applied) -->
     <div id="instructions" class="fixed top-4 left-1/2 -translate-x-1/2 z-40 bg-white/10 text-gray-300 p-2 rounded-xl font-semibold text-sm backdrop-blur-sm transition-opacity">
         <div class="font-extrabold text-[#dfe3ff]">3D Network Explorer</div>
@@ -978,6 +987,7 @@ function getPointerCoordinates(event, isEnd = false) {
     </script>
 </body>
 </html>
+
 
 
 
