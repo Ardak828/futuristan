@@ -194,9 +194,9 @@ By continuously expanding the universe of diverse experiences and concepts, we a
          /* ========== STAR CONFIGURATION FOR THREE.JS BACKGROUND ========== */
     const STAR_CONFIG = {
         // 1. DENSITY: Total number of background stars. (Increase for more stars)
-        COUNT: 1200, 
+        COUNT: 1500, 
         // 2. SIZE: Base size of the stars in the scene. (Increase for bigger dots)
-        BASE_SIZE: 0.7,
+        BASE_SIZE: 1.0,
         // 3. GLOW/SIZE: If true, stars further away appear smaller. Setting this to false can increase "glow" effect, but is less realistic.
         SIZE_ATTENUATION: true, 
         // 4. COLOR: All stars are randomly tinted, but this sets the maximum range. 
@@ -208,7 +208,7 @@ By continuously expanding the universe of diverse experiences and concepts, we a
         // 6. MOVEMENT SPEED: How fast the stars subtle orbit/drift. (Lower is slower)
         STAR_ORBIT_SPEED: 0.0005, 
         // 7. MOVEMENT DISTANCE: The maximum distance the stars drift from their original position.
-        STAR_MAX_DRIFT: 10
+        STAR_MAX_DRIFT: 20
     };
 
     /* ========== THREE.JS STATE & FORCE CONSTANTS ========== */
@@ -218,8 +218,8 @@ By continuously expanding the universe of diverse experiences and concepts, we a
     let starsMesh;
     let nodes = [], edges = [];
         
-    const NODE_RADIUS = 7;
-    const GALAXY_RADIUS = 130;
+    const NODE_RADIUS = 6;
+    const GALAXY_RADIUS = 150;
     const CLICK_THRESHOLD = 25; // pixels
 
     // Force Simulation Constants
@@ -987,6 +987,7 @@ function getPointerCoordinates(event, isEnd = false) {
     </script>
 </body>
 </html>
+
 
 
 
