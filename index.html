@@ -7,6 +7,8 @@
     <link rel="icon" type="image/png" href="images/Futuristan-logo-small-fav.png" >
     <!-- Load Tailwind CSS for modern, utility-first styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    
     <style>
         /* Custom styles for Three.js container and fonts */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;600;800&display=swap');
@@ -63,6 +65,7 @@
     <!-- THREE.js r128 + OrbitControls -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
 </head>
 <body>
     <!-- NEW LOGO ELEMENT: FIXED POSITION TOP RIGHT CORNER -->
@@ -88,7 +91,7 @@
             </select>
         </div>
         <button id="about-btn" class="p-2 rounded-xl border border-white/10 bg-white/5 text-white font-bold text-sm hover:bg-white/10 transition">
-            About
+            About | Contact
         </button>
     </div>
 
@@ -97,12 +100,13 @@
     <!-- About Content View (New Page) -->
     <div id="aboutContent" class="absolute inset-0 z-30 flex items-center justify-center p-4 md:p-8 hidden">
         <div class="max-w-3xl w-full bg-[#0a0a0a] p-8 md:p-12 rounded-2xl shadow-2xl border border-white/10 backdrop-blur-sm max-h-[90vh] overflow-y-auto">
-            <h2 class="text-4xl font-extrabold text-indigo-400 mb-6">About Futuristan.lab</h2>
+            <h2 class="text-4xl font-extrabold text-indigo-400 mb-6">About Futuristan Lab</h2>
             <p class="text-gray-300 mb-4 text-lg leading-relaxed">
-                Futuristan.lab is a laboratory for new media and the research of decolonial perspectives on the future. Grounded in local voices of human and more-than-human agents, archival materials, scholarly texts, and alternative sources, we explore what the future can be from the perspective of Kazakh cosmology as well as other Indigenous and decolonial perceptions. We pursue this research with various tools—generative algorithms, simulations, immersive environments, AR/VR, and artificial intelligence. Reframing temporality and methods of knowledge-making, we create interfaces and cartographies of decolonial futurisms (The Map of Decolonial Futurism, 2025).
+                Futuristan Lab is a laboratory for new media and the research of decolonial perspectives on the future. Grounded in local voices of human and more-than-human agents, archival materials, scholarly texts, and alternative sources, we explore what the future can be from the perspective of Kazakh cosmology as well as other Indigenous and decolonial perceptions. We pursue this research with various tools—generative algorithms, simulations, immersive environments, AR/VR, and artificial intelligence. Reframing temporality and methods of knowledge-making, we create interfaces and cartographies of decolonial futurisms (The Map of Decolonial Futurism, 2025).
 We combine our individual experiences— representing a ten-year practice of the new-media artist duo Ardak Mukanova and Anvar Musrepov. Among our selected artistic projects are: Neo-Tengri (Ardak Mukanova; Gold Winner, NEWVIEW AWARDS 2021, Tokyo); Alastau (Anvar Musrepov; National Pavilion of Kazakhstan at the 60th Venice Biennale 2024), the first sci-fi film grounded in Kazakh cosmology; Following the Shadow (Anvar Musrepov; Film Museum Vienna, 2020), a study of geopolitical tensions in the Arctic region; and Glyphs of Another World (Ardak Mukanova; Parsons, New York, 2022).
 Through the resonances of the sacred tree Aulie-Agash (Koktal, Kazakhstan), we created an immersive experience (Auliye-Agash, 2024) based on photogrammetry. In the study of A. G. Tikhov’s legacy (Las Deudas 2050, art residency in Buenos Aires, 2025), we developed environments inspired by the ideas of astrobotany, including video installations and gastro-experiments (Astrosoup, 2025).
 By continuously expanding the universe of diverse experiences and concepts, we aim to explore and design alternative models of the future. Our goal is to build translocal networks for the exchange of knowledge and practice, expanding notions of planetarity and overcoming the global crisis of imagination.
+                <br>
                 To contribute your materials, please send us an email to ardakmukanova@gmail.com
             </p>
             <p class="text-gray-400 mb-4 leading-relaxed">
@@ -985,6 +989,7 @@ function getPointerCoordinates(event, isEnd = false) {
     </script>
 </body>
 </html>
+
 
 
 
