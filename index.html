@@ -126,13 +126,19 @@ By continuously expanding the universe of diverse experiences and concepts, we a
 
 
     <!-- Journal Content View -->
-    <div id="journalContent" class="absolute inset-0 z-30 hidden bg-black">
+    <div id="journalContent" class="absolute inset-0 z-30 hidden bg-black pt-20">
         <div class="flex h-full">
             <aside class="w-72 border-r border-white/10 p-6 overflow-y-auto">
                 <h3 class="text-lg font-extrabold mb-4 text-indigo-400">Journal</h3>
                 <ul id="journalList" class="space-y-3 text-sm"></ul>
             </aside>
             <main class="flex-1 p-8 overflow-y-auto">
+                <button id="closeJournalBtn"
+                class="mb-6 px-4 py-2 rounded-xl border border-white/10
+               bg-white/5 text-white font-bold text-sm
+               hover:bg-white/10 transition">
+                Back to Network
+            </button>
                 <article id="journalArticle" class="max-w-3xl">
                     <h1 class="text-3xl font-extrabold mb-4"></h1>
                     <div class="text-gray-300 leading-relaxed space-y-4"></div>
@@ -1033,6 +1039,11 @@ function getPointerCoordinates(event, isEnd = false) {
         journalArticle = document.getElementById('journalArticle');
 
         if (journalBtn) journalBtn.onclick = () => showView('journal');
+
+        const closeJournalBtn = document.getElementById('closeJournalBtn');
+        if (closeJournalBtn) {
+        closeJournalBtn.onclick = () => showView('network');
+        }
     }
 
     const _showViewOriginal_J = showView;
@@ -1071,3 +1082,4 @@ function getPointerCoordinates(event, isEnd = false) {
     </script>
 </body>
 </html>
+
