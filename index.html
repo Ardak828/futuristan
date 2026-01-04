@@ -93,13 +93,8 @@
         <button id="about-btn" class="p-2 rounded-xl border border-white/10 bg-white/5 text-white font-bold text-sm hover:bg-white/10 transition">
             About | Contact
         </button>
+        <button id="journal-btn" class="p-2 rounded-xl border border-white/10 bg-white/5 text-white font-bold text-sm hover:bg-white/10 transition">Journal</button>
     </div>
-
-    <button id="journal-btn"
-        class="p-2 rounded-xl border border-white/10 bg-white/5 text-white font-bold text-sm">
-        Journal
-    </button>
-</div>
 
     <div id="label-container" style="pointer-events:none;"></div>
 
@@ -130,23 +125,21 @@ By continuously expanding the universe of diverse experiences and concepts, we a
     </div>
 
 
+    <!-- Journal Content View -->
     <div id="journalContent" class="absolute inset-0 z-30 hidden bg-black">
-    <div class="flex h-full">
-
-        <aside class="w-72 border-r border-white/10 p-6 overflow-y-auto">
-            <h3 class="text-lg font-extrabold mb-4 text-indigo-400">Journal</h3>
-            <ul id="journalList" class="space-y-3 text-sm"></ul>
-        </aside>
-
-        <main class="flex-1 p-8 overflow-y-auto">
-            <article id="journalArticle" class="max-w-3xl">
-                <h1 class="text-3xl font-extrabold mb-4"></h1>
-                <div class="text-gray-300 leading-relaxed space-y-4"></div>
-            </article>
-        </main>
-
+        <div class="flex h-full">
+            <aside class="w-72 border-r border-white/10 p-6 overflow-y-auto">
+                <h3 class="text-lg font-extrabold mb-4 text-indigo-400">Journal</h3>
+                <ul id="journalList" class="space-y-3 text-sm"></ul>
+            </aside>
+            <main class="flex-1 p-8 overflow-y-auto">
+                <article id="journalArticle" class="max-w-3xl">
+                    <h1 class="text-3xl font-extrabold mb-4"></h1>
+                    <div class="text-gray-300 leading-relaxed space-y-4"></div>
+                </article>
+            </main>
+        </div>
     </div>
-</div>
 
 
     <!-- Modal (Tailwind classes applied) -->
@@ -238,30 +231,6 @@ By continuously expanding the universe of diverse experiences and concepts, we a
         STAR_MAX_DRIFT: 20
     };
 
-        const JOURNAL_ARTICLES = [
-    {
-        id: "artificial-god",
-        title: "Artificial God. On the Digitalization of the Sacred",
-        content: `
-        <p>
-        Algorithms become intermediaries between spiritual experience and the human.
-        </p>
-        <p>
-        Robots and neural networks already act as digital priests.
-        </p>
-        `
-    },
-    {
-        id: "decolonial-futurism",
-        title: "Decolonial Futurism as Method",
-        content: `
-        <p>
-        Decolonial futurism rejects linear progress and Western time.
-        </p>
-        `
-    }
-];
-
     /* ========== THREE.JS STATE & FORCE CONSTANTS ========== */
     let scene, camera, renderer, controls, canvasElement;
     let raycaster, mouse;
@@ -291,9 +260,6 @@ By continuously expanding the universe of diverse experiences and concepts, we a
 
     // View management state
     let currentView = 'network'; // 'network' or 'about'
-    let journalBtn, journalContent, journalList, journalArticle;
-    let aboutBtn, aboutContent, backToNetworkBtn;
-    let instructions, filterGroup;
 
     // Modal and UI elements
     const projectModal = document.getElementById('projectModal');
@@ -370,10 +336,6 @@ function getPointerCoordinates(event, isEnd = false) {
         populateFilterMenu();
         
         // UI element references
-        journalBtn = document.getElementById('journal-btn');
-        journalContent = document.getElementById('journalContent');
-        journalList = document.getElementById('journalList');
-        journalArticle = document.getElementById('journalArticle');
         aboutContent = document.getElementById('aboutContent');
         aboutBtn = document.getElementById('about-btn');
         backToNetworkBtn = document.getElementById('backToNetworkBtn');
@@ -381,11 +343,6 @@ function getPointerCoordinates(event, isEnd = false) {
         filterGroup = document.getElementById('filter-group');
         prevProjectBtn = document.getElementById('prevProjectBtn');
         nextProjectBtn = document.getElementById('nextProjectBtn');
-        journalBtn.onclick = () => showView('journal');
-        aboutBtn.onclick = () => showView('about');
-        backToNetworkBtn.onclick = () => showView('network');
-
-        showView('network');
 
 
         // Event listeners
@@ -448,8 +405,6 @@ function getPointerCoordinates(event, isEnd = false) {
         currentView = viewName;
         
         const isNetwork = viewName === 'network';
-        const isAbout = viewName === 'about';
-        const isJournal = viewName === 'journal';
         
         // 1. Canvas (3D Scene)
         canvasElement.style.display = isNetwork ? 'block' : 'none';
@@ -460,8 +415,7 @@ function getPointerCoordinates(event, isEnd = false) {
         aboutBtn.textContent = isNetwork ? 'About' : 'Network'; // Toggle button text for clearer navigation
         
         // 3. About Page UI
-        aboutContent.classList.toggle('hidden', isAbout);
-        journalContent.classList.toggle('hidden', !isJournal);
+        aboutContent.classList.toggle('hidden', isNetwork);
         
         // 4. 3D Controls
         controls.enabled = isNetwork;
@@ -477,32 +431,8 @@ function getPointerCoordinates(event, isEnd = false) {
         } else {
             aboutBtn.textContent = 'Network';
         }
-
-        if (isJournal) {
-        renderJournalList();
-        loadJournalArticle(JOURNAL_ARTICLES[0].id);
     }
-}
 
-    /* ================== JOURNAL ================== */
-
-function renderJournalList() {
-    journalList.innerHTML = '';
-    JOURNAL_ARTICLES.forEach(a => {
-        const li = document.createElement('li');
-        li.textContent = a.title;
-        li.className = 'cursor-pointer text-gray-400 hover:text-white';
-        li.onclick = () => loadJournalArticle(a.id);
-        journalList.appendChild(li);
-    });
-}
-
-function loadJournalArticle(id) {
-    const article = JOURNAL_ARTICLES.find(a => a.id === id);
-    if (!article) return;
-    journalArticle.querySelector('h1').textContent = article.title;
-    journalArticle.querySelector('div').innerHTML = article.content;
-}
 
     /**
      * Creates a circular texture using the Canvas API.
@@ -1073,7 +1003,71 @@ function loadJournalArticle(id) {
     }
 
     /* ---------- Start ---------- */
-    window.onload = init;
+    
+    /* ================= JOURNAL ================= */
+
+    const JOURNAL_ARTICLES = [
+        {
+            id: "artificial-god",
+            title: "Artificial God. On the Digitalization of the Sacred",
+            content: `
+            <p>Algorithms become intermediaries between spiritual experience and the human.</p>
+            <p>Robots and neural networks already act as digital priests.</p>
+            `
+        },
+        {
+            id: "decolonial-futurism",
+            title: "Decolonial Futurism as Method",
+            content: `
+            <p>Decolonial futurism rejects linear progress and Western time.</p>
+            `
+        }
+    ];
+
+    let journalBtn, journalContent, journalList, journalArticle;
+
+    function initJournal() {
+        journalBtn = document.getElementById('journal-btn');
+        journalContent = document.getElementById('journalContent');
+        journalList = document.getElementById('journalList');
+        journalArticle = document.getElementById('journalArticle');
+
+        if (journalBtn) journalBtn.onclick = () => showView('journal');
+    }
+
+    const _showViewOriginal_J = showView;
+    showView = function(viewName) {
+        _showViewOriginal_J(viewName);
+
+        const isJournal = viewName === 'journal';
+        if (journalContent) journalContent.classList.toggle('hidden', !isJournal);
+
+        if (isJournal) {
+            renderJournalList();
+            loadJournalArticle(JOURNAL_ARTICLES[0].id);
+        }
+    };
+
+    function renderJournalList() {
+        journalList.innerHTML = '';
+        JOURNAL_ARTICLES.forEach(a => {
+            const li = document.createElement('li');
+            li.textContent = a.title;
+            li.className = 'cursor-pointer text-gray-400 hover:text-white transition';
+            li.onclick = () => loadJournalArticle(a.id);
+            journalList.appendChild(li);
+        });
+    }
+
+    function loadJournalArticle(id) {
+        const a = JOURNAL_ARTICLES.find(x => x.id === id);
+        if (!a) return;
+        journalArticle.querySelector('h1').textContent = a.title;
+        journalArticle.querySelector('div').innerHTML = a.content;
+    }
+
+
+    window.onload = function(){ init(); initJournal(); };
     </script>
 </body>
 </html>
