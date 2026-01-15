@@ -446,18 +446,29 @@ function getPointerCoordinates(event, isEnd = false) {
         currentView = viewName;
         
         const isNetwork = viewName === 'network';
-        
-        // 1. Canvas (3D Scene)
-        canvasElement.style.display = isNetwork ? 'block' : 'none';
-        
-        // 2. Network-specific UI
-        instructions.style.display = isNetwork ? 'block' : 'none';
-        filterGroup.style.display = isNetwork ? 'block' : 'none';
-        aboutBtn.textContent = isNetwork ? 'About' : 'Network'; // Toggle button text for clearer navigation
-        
-        // 3. About Page UI
-        aboutContent.classList.toggle('hidden', isNetwork);
-        
+        const isAbout = viewName === 'about';
+        const isJournal = viewName === 'journal';
+
+           // 3D canvas
+    canvasElement.style.display = isNetwork ? 'block' : 'none';
+    controls.enabled = isNetwork;
+
+    // Network UI
+    instructions.style.display = isNetwork ? 'block' : 'none';
+    filterGroup.style.display = isNetwork ? 'block' : 'none';
+
+    // Pages
+    aboutContent.classList.toggle('hidden', !isAbout);
+    journalContent.classList.toggle('hidden', !isJournal);
+
+    // Button label logic
+    if (isNetwork) {
+        aboutBtn.textContent = 'About | Contact';
+    } else {
+        aboutBtn.textContent = 'Network';
+    }
+}
+              
         // 4. 3D Controls
         controls.enabled = isNetwork;
         
@@ -466,13 +477,6 @@ function getPointerCoordinates(event, isEnd = false) {
             closeProjectModal();
         }
         
-        // If switching to network, ensure about button reverts text
-        if (isNetwork) {
-            aboutBtn.textContent = 'About | Contact';
-        } else {
-            aboutBtn.textContent = 'Network';
-        }
-    }
 
 
     /**
@@ -1354,6 +1358,7 @@ function loadJournalArticle(id) {
     </script>
 </body>
 </html>
+
 
 
 
