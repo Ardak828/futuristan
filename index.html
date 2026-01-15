@@ -1330,18 +1330,31 @@ A contemporary interpretation of this ancient legend combined painting, new medi
         });
     }
 
-    function loadJournalArticle(id) {
-        const a = JOURNAL_ARTICLES.find(x => x.id === id);
-        if (!a) return;
-        journalArticle.querySelector('h1').textContent = a.title;
-        journalArticle.querySelector('div').innerHTML = a.content;
+function loadJournalArticle(id) {
+    const a = JOURNAL_ARTICLES.find(x => x.id === id);
+    if (!a) return;
+
+    // Set content
+    journalArticle.querySelector('h1').textContent = a.title;
+    journalArticle.querySelector('div').innerHTML = a.content;
+
+    // ⬇️ FORCE SCROLL TO TOP
+    journalArticle.scrollTop = 0;
+
+    // Also reset the scroll of the main container (important on mobile)
+    const journalMain = journalArticle.closest('main');
+    if (journalMain) {
+        journalMain.scrollTop = 0;
     }
+}
+
 
 
     window.onload = function(){ init(); initJournal(); };
     </script>
 </body>
 </html>
+
 
 
 
